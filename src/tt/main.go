@@ -56,7 +56,16 @@ func parseArgs(argv []string) model.Arguments {
 	for len(argv) > 0 {
 		s = argv[0]
 		argv = argv[1:]
-		isStamp := (strings.Contains(s, ":") || strings.Contains(s, "-")) && !strings.Contains(s, "/")
+
+		isStamp := !strings.Contains(s, "/") && (
+			strings.Contains(s, ":") ||
+			strings.Contains(s, "-") ||
+			strings.Contains(s, "+") ||
+			strings.Contains(s, "now") ||
+			strings.Contains(s, "hour") ||
+			strings.Contains(s, "minute") ||
+			strings.Contains(s, "days") ||
+			strings.Contains(s, "day"))
 
 		if "count" == s {
 			a.DoCount = true
@@ -91,7 +100,7 @@ func showLastTuple(stampLine string, args model.Arguments) {
 		stampsFile := io.Open(args)
 		_, tuples, _ := report.ParseRecords(stampsFile)
 		stampsFile.Close()
-		fmt.Print(report.FormatTuple(tuples[len(tuples)-1]))
+		fmt.Println(report.FormatTuple(tuples[len(tuples)-1]))
 	}
 
 }
