@@ -7,11 +7,13 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"path"
 	"strings"
 	"time"
 )
 
+var stdErr = log.New(os.Stderr, "", 0)
 
 func die(e error) {
 	if e != nil {
@@ -85,14 +87,14 @@ func AppendLog(args model.Arguments) {
 			fmt.Println(lines[len(lines)-i])
 		}
 	}
-	//_ = exec.Command(os.Getenv("EDITOR"), logPath).Run()
+	stdErr.Println(logPath)
+	_ = exec.Command(os.Getenv("EDITOR"), logPath).Run() // todo: support vim, nano
 }
 
 func AddStamp(args model.Arguments) string {
 	stampsFile := Open(args)
 	stampLine := writeStamp(stampsFile, args.Stamp, args.Mark)
 	stampsFile.Close()
-	stdErr := log.New(os.Stderr, "", 0)
 	stdErr.Printf("%s -> %s\n", stampLine, stampsFile.Name())
 	return stampLine
 }
