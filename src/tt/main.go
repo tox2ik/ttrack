@@ -26,18 +26,21 @@ func dump(e interface{}) {
 	fmt.Printf("%v -- %T\n", e, e)
 }
 
-func createStorageFolder() (string, error) {
+func createStorageFolder(ttdir string) (string, error) {
 	var home = os.Getenv("HOME")
 	var direnv = os.Getenv("TIMETRACK_DIR")
-	var ttdir string
+	//var ttdir string
 
-	if len(ttdir) >= 1 {
-		ttdir = direnv
-	} else if len(home) > 0 {
-		ttdir = sprintf("%s/ttrack", home)
-	} else if len(ttdir) + len(home) == 0 {
-		ttdir = "/tmp/ttrack"
+	if len(ttdir) == 0 {
+		if len(direnv) >= 1 {
+			ttdir = direnv
+		} else if len(home) > 0 {
+			ttdir = sprintf("%s/ttrack", home)
+		} else if len(ttdir) + len(home) == 0 {
+			ttdir = "/tmp/ttrack"
+		}
 	}
+
 	_, err := os.Stat(ttdir)
 	if err != nil && os.IsNotExist(err) {
 		return "", err
@@ -50,25 +53,18 @@ func createStorageFolder() (string, error) {
 	return ttdir, nil
 }
 
-
-// in : 2007-03-04 12:20:00 1173010800
-// out: 2007-03-04 12:20:00 1173010800
-func formatTime(t time.Time, mark string) string {
-	if mark == "" { mark = "in" }
-	return fmt.Sprintf("%-4s %d-%02d-%02d %02d:%02d:%02d %d",
-		mark + ":",
-        t.Year(), t.Month(), t.Day(),
-        t.Hour(), t.Minute(), t.Second(),
-        t.Unix())
+func openOutputFile(path string) (*os.File, error) {
+	var out, err =  os.OpenFile(path, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0755)
+	return out, err
 }
 
-
-func openOutputFile(t time.Time) (*os.File, error) {
-	storageFolder, err := createStorageFolder()
+func openCurrentMonthOutputFile(t time.Time) (*os.File, error) {
+	storageFolder, err := createStorageFolder("")
 	die(err)
 	if len(storageFolder) > 0 {
 		monthPath := sprintf("%s/%s", storageFolder, strings.ToLower(t.Format("Jan")))
 		var out, err =  os.OpenFile(monthPath, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0755)
+		die(err)
 		return out, err
 	}
 	return & os.File{}, err
@@ -103,6 +99,9 @@ func parseInputDate(inputDate string) (time.Time, error){
 	return time.Time{}, err
 }
 
+// if last marker==out: ... => out
+// if last marker==in : ... => in
+// if no records        ... => in
 func identifyLastStamp(path string) string {
 	var out* os.File
 	var err error
@@ -115,24 +114,58 @@ func identifyLastStamp(path string) string {
 	stat, _ := os.Stat(path)
 	o := make([]byte, stat.Size())
 	_, err = out.Read(o)
-	for lastLn = len(o)-1; lastLn >-1; {
-		if o[lastLn] == 10 && lastLn != len(o)-1 {
-			break
-		}
-		lastLn--
+	lastIndex := int(stat.Size()-1)
+
+
+	if lastIndex <= 0 {
+		return "" //  first record is always in? ... maybe
 	}
-	for colon = lastLn; colon < (len(o)-1); {
-		if o[colon] == 58 {
-			break
+
+	//var isEmptyFile bool
+	//isEmptyFile = lastIndex <= 1
+	//
+	//if isEmptyFile {
+	//	return "out" //  first record is always in? ... maybe
+	//}
+
+	if lastIndex >=2 {
+		for lastLn = lastIndex; lastLn >-1; {
+			if o[lastLn] == 10 && lastLn != lastIndex {
+				break
+			}
+			lastLn--
 		}
-		colon++
-	}
-	if colon > lastLn {
-		return strings.Trim(string(o[lastLn:colon]), "\n")
+		if lastLn == -1 {
+			lastLn = 0
+			colon = 1
+		} else {
+			colon = lastLn
+		}
+		for ; colon < lastIndex && colon >= 0; {
+			if o[colon] == 58 {
+				break
+			}
+			colon++
+		}
+		if colon > lastLn {
+			return strings.Trim(string(o[lastLn:colon]), "\n")
+		}
 	}
 	return "in"
 }
 
+
+
+// in : 2007-03-04 12:20:00 1173010800
+// out: 2007-03-04 12:20:00 1173010800
+func formatTime(t time.Time, mark string) string {
+	if mark == "" { mark = "in" }
+	return fmt.Sprintf("%-4s %d-%02d-%02d %02d:%02d:%02d %d",
+		mark + ":",
+		t.Year(), t.Month(), t.Day(),
+		t.Hour(), t.Minute(), t.Second(),
+		t.Unix())
+}
 
 func noramalizeMark(mark string) string {
 	r := "in"
@@ -145,74 +178,96 @@ func noramalizeMark(mark string) string {
 	return r
 }
 
-func oppositeMark(mark string) string {
+func determineNextStamp(mark string) string {
 	var r string;
-	r = "out"
-
 	switch mark {
 	case "in": r = "out"
 	case "out": r = "in"
+	case "": r = "in"
 	}
-
-	ln("last:" + mark, " opposite:" + r)
-
 	return r
 }
 
 func enforceSequence(requestedMark string, out *os.File) error {
 	last := identifyLastStamp(out.Name())
+	if requestedMark != "in" && requestedMark != "out" {
+		return errors.New(sprintf("Unrecognized marker: %s", requestedMark))
+	}
 	if requestedMark == last {
 		msg := sprintf(
-			"invalid in/out sequence %s -> %s;\n    - end the last session or start a new one first", last, requestedMark)
-		log.New(os.Stderr, "", 0).Println(msg)
+			"invalid in/out sequence %s -> %s;\n    - end the last session or start a new one first",
+			last,
+			requestedMark)
+		//log.New(os.Stderr, "", 0).Println(msg)
 		return errors.New(msg)
 	}
 	return nil
 }
 
 
-func main() {
+
+func writeStamp(out *os.File, stamp time.Time, mark string) interface{} {
 	var err error
-	var out* os.File
-	var stamp time.Time
-	var inDate string
-	var inputMark string
-
-	// binFile := os.Args[1]
-	argv := os.Args[1:]
-
-	if len(argv) == 2 {
-		inputMark = os.Args[2]
-		inDate = os.Args[1]
-	} else if len(argv) == 1 {
-		inDate = os.Args[1]
-		stamp = time.Now()
-	} else if len(argv) == 0 {
-		stamp = time.Now()
-	}
-
-
-	if len(inDate) > 0 {
-		stamp, err = parseInputDate(inDate)
-		die(err)
-	}
-
-	out, err = openOutputFile(stamp)
-
-
-	if len(inputMark) > 0 {
-		if nil != enforceSequence(inputMark, out) {
-			os.Exit(1)
+	if len(mark) > 0 {
+		err := enforceSequence(mark, out)
+		if nil != err {
+			panic(err)
 		}
 	} else {
-		inputMark = oppositeMark(identifyLastStamp(out.Name()))
+		lastMark := identifyLastStamp(out.Name())
+		mark = determineNextStamp(lastMark)
 	}
-
-	stampLine := formatTime(stamp, noramalizeMark(inputMark))
+	stampLine := formatTime(stamp, noramalizeMark(mark))
 	_, err = out.WriteString(stampLine+"\n")
 	die(err)
-
 	out.Sync()
-	fmt.Printf("%s -> %s\n", stampLine, out.Name())
+	return stampLine
 }
+
+
+type arguments struct {
+	stamp time.Time
+	mark string
+	outPath string
+}
+
+func parseArgs(argv []string) arguments {
+	var dateString string
+	var s string
+	var a = arguments{}
+	for len(argv) > 0 {
+		s = argv[0]
+		argv = argv[1:]
+		isStamp := (strings.Contains(s, ":") || strings.Contains(s, "-")) && !strings.Contains(s, "/")
+		if len(s) <= 3 {
+			a.mark = s
+		} else if isStamp {
+			dateString = s
+		} else {
+			a.outPath = s
+		}
+	}
+	if len(dateString) > 0 {
+		stamp, _ := parseInputDate(dateString)
+		a.stamp = stamp
+	} else {
+		a.stamp = time.Now()
+	}
+	return a
+}
+
+func main() {
+	var out* os.File
+	var args arguments = parseArgs(os.Args[1:])
+	if len(args.outPath) > 0 {
+		out, _ = openOutputFile(args.outPath)
+	} else {
+		out, _ = openCurrentMonthOutputFile(args.stamp)
+	}
+	stampLine := writeStamp(out, args.stamp, args.mark)
+	_ = out.Close()
+	log.New(os.Stderr, "", 0).Print(fmt.Sprintf("%s -> %s\n", stampLine, out.Name()))
+}
+
+
 

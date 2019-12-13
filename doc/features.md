@@ -12,14 +12,14 @@
 
 ## usability
 
-- [ ] log to custom file
+- [x] log to custom file
     
 ## logic
 
 - [x] wite to file for current month in $TIMETRACK_DIR (~/ttrack)
 - [ ] auto close/open stamp based on previous stamp
-    - [ ] warn if day not same
-    - [ ] offer to close last day with prompt, auto open for today
+    - [x] in -> out; out -> in
+    - [ ] warn if day not same, - [ ] offer to close last day with prompt, auto open for today
 
 ## Parsing
 
@@ -44,8 +44,6 @@
 ## Help
 
 - [ ] document user-flags and commands
-    - [ ] in
-    - [ ] out
+    - [ ] in/out mark
     - [ ] custom-time
-    - [ ] mark
     
