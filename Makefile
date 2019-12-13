@@ -7,4 +7,6 @@ tt:
 
 install:
 	install -v ttrack ~/bin/tt
+
+pack:
 	upx --brute ~/bin/tt
