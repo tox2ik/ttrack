@@ -1,6 +1,8 @@
 package main
 
 import (
+	R "../report"
+	A "../arguments"
 	"errors"
 	"fmt"
 	_ "github.com/araddon/dateparse"
@@ -206,10 +208,10 @@ func enforceSequence(requestedMark string, out *os.File) error {
 
 
 
-func writeStamp(out *os.File, stamp time.Time, mark string) interface{} {
+func writeStamp(out *os.File, stamp time.Time, mark string) string {
 	var err error
 	if len(mark) > 0 {
-		err := enforceSequence(mark, out)
+		err := enforceSequence(noramalizeMark(mark), out)
 		if nil != err {
 			panic(err)
 		}
@@ -225,49 +227,65 @@ func writeStamp(out *os.File, stamp time.Time, mark string) interface{} {
 }
 
 
-type arguments struct {
-	stamp time.Time
-	mark string
-	outPath string
-}
 
-func parseArgs(argv []string) arguments {
+func parseArgs(argv []string) A.Arguments {
 	var dateString string
 	var s string
-	var a = arguments{}
+	var a = A.Arguments{DoCount: false}
 	for len(argv) > 0 {
 		s = argv[0]
 		argv = argv[1:]
 		isStamp := (strings.Contains(s, ":") || strings.Contains(s, "-")) && !strings.Contains(s, "/")
-		if len(s) <= 3 {
-			a.mark = s
+
+		if "count" == s {
+			a.DoCount = true
+		} else if "per-day" == s {
+			a.SumPerDay = true
+		} else if len(s) <= 3 {
+			a.Mark = s
 		} else if isStamp {
 			dateString = s
 		} else {
-			a.outPath = s
+			a.OutPath = s
 		}
 	}
 	if len(dateString) > 0 {
 		stamp, _ := parseInputDate(dateString)
-		a.stamp = stamp
+		a.Stamp = stamp
 	} else {
-		a.stamp = time.Now()
+		a.Stamp = time.Now()
 	}
 	return a
 }
 
-func main() {
+func open(args A.Arguments) *os.File {
 	var out* os.File
-	var args arguments = parseArgs(os.Args[1:])
-	if len(args.outPath) > 0 {
-		out, _ = openOutputFile(args.outPath)
+	if len(args.OutPath) > 0 {
+		out, _ = openOutputFile(args.OutPath)
 	} else {
-		out, _ = openCurrentMonthOutputFile(args.stamp)
+		out, _ = openCurrentMonthOutputFile(args.Stamp)
 	}
-	stampLine := writeStamp(out, args.stamp, args.mark)
-	_ = out.Close()
-	log.New(os.Stderr, "", 0).Print(fmt.Sprintf("%s -> %s\n", stampLine, out.Name()))
+	return out
 }
+
+
+
+func main() {
+	var stampsFile * os.File
+	var args A.Arguments = parseArgs(os.Args[1:])
+
+	if args.DoCount {
+		R.Count(open(args), args)
+
+	} else  {
+		stampsFile = open(args)
+		stampLine := writeStamp(stampsFile, args.Stamp, args.Mark)
+		_ = stampsFile.Close()
+		log.New(os.Stderr, "", 0).Print(fmt.Sprintf("%s -> %s\n", stampLine, stampsFile.Name()))
+
+	}
+}
+
 
 
 

@@ -9,6 +9,7 @@
 - log sick-leave
     - [ ] include sick-leave in calculation
     - [ ] define standard hours
+- [ ] print duration of last entry when logging out.
 
 ## usability
 
@@ -29,16 +30,15 @@
 
 ## Counting
 
-- calculate average hours 
-    - per day
-    - per month
-- write to a file
-- add standard-hours for sick-leave days
+- [x] calculate average hours 
+    - [x] per day
+    - [ ] per month
+- [ ] add standard-hours for sick-leave days
 
 ## Reporting
 
-- generate a simple (excel) report
-- exclude holidays
+- [ ] generate a simple (excel) report
+- [ ] exclude holidays
 
 
 ## Help

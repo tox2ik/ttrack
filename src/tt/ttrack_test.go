@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"strings"
 	"testing"
 	"time"
 )
@@ -58,4 +59,14 @@ func TestInvalidMark(t *testing.T) {
 	defer expectPanic(t)
 	out, _ = openOutputFile("/tmp/ttrack")
 	writeStamp(out, time.Now(), "typo")
+}
+
+
+func TestSupportUtasOut(t *testing.T) {
+	//defer expectPanic(t)
+	out, _ = openOutputFile("/tmp/ttrack")
+	s := writeStamp(out, time.Now(), "ut")
+	if ! strings.Contains(s, "out") {
+		t.Errorf("should have converted ut to out")
+	}
 }
