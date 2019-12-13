@@ -93,7 +93,7 @@ func ParseRecords(file *os.File) ([]record, []tuple, error) {
 }
 
 func FormatTuple(t tuple) string {
-	return fmt.Sprintf("%10s %5.2f\n", t.day, t.seconds/3600)
+	return fmt.Sprintf("%10s %5.2f", t.day, t.seconds/3600)
 }
 
 func Count(file *os.File) error {
@@ -126,4 +126,5 @@ func CountPerDay(file *os.File) error {
 	fmt.Printf("  average: %5.2f\n", total / 3600 / float32(len(secondsPerDay)))
 	return parseError
 }
+
 

@@ -1,2 +1,3 @@
 
-go run main.go "$@"
+
+go run $(dirname ${BASH_SOURCE[0]})/main.go "$@"

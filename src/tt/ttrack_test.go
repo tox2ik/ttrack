@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	io "./io"
 	"strings"
 	"testing"
 	"time"
@@ -33,7 +34,7 @@ func TestFirstStamp(t *testing.T) {
 }
 
 func TestSecondStamp(t *testing.T) {
-	out, _ = openOutputFile("/tmp/ttrack")
+	out, _ = io.OpenOutputFile("/tmp/ttrack")
 	writeStamp(out, time.Now(), "")
 	writeStamp(out, time.Now(), "")
 	if identifyLastStamp("/tmp/ttrack") != "out" {
@@ -43,28 +44,28 @@ func TestSecondStamp(t *testing.T) {
 
 func TestOutOfSequenceA(t *testing.T) {
 	defer expectPanic(t)
-	out, _ = openOutputFile("/tmp/ttrack")
+	out, _ = io.OpenOutputFile("/tmp/ttrack")
 	writeStamp(out, time.Now(), "in")
 	writeStamp(out, time.Now(), "in")
 }
 
 func TestOutOfSequenceB(t *testing.T) {
 	defer expectPanic(t)
-	out, _ = openOutputFile("/tmp/ttrack")
+	out, _ = io.OpenOutputFile("/tmp/ttrack")
 	writeStamp(out, time.Now(), "out")
 	writeStamp(out, time.Now(), "out")
 }
 
 func TestInvalidMark(t *testing.T) {
 	defer expectPanic(t)
-	out, _ = openOutputFile("/tmp/ttrack")
+	out, _ = io.OpenOutputFile("/tmp/ttrack")
 	writeStamp(out, time.Now(), "typo")
 }
 
 
 func TestSupportUtasOut(t *testing.T) {
 	//defer expectPanic(t)
-	out, _ = openOutputFile("/tmp/ttrack")
+	out, _ = io.OpenOutputFile("/tmp/ttrack")
 	s := writeStamp(out, time.Now(), "ut")
 	if ! strings.Contains(s, "out") {
 		t.Errorf("should have converted ut to out")
