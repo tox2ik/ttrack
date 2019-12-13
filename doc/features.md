@@ -6,7 +6,7 @@
     - [x] log in, log out
 - [x] log custom date
 - [ ] mark chunk: log out; log in
-- log sick-leave
+- [ ] log sick-leave
     - [ ] include sick-leave in calculation
     - [ ] define standard hours
 - [ ] print duration of last entry when logging out.
