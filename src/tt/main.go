@@ -1,11 +1,10 @@
 package main
 
 import (
-	R "../report"
-	A "../arguments"
+	model "../arguments"
+	report "../report"
 	"errors"
 	"fmt"
-	_ "github.com/araddon/dateparse"
 	"log"
 	"os"
 	"os/exec"
@@ -228,10 +227,10 @@ func writeStamp(out *os.File, stamp time.Time, mark string) string {
 
 
 
-func parseArgs(argv []string) A.Arguments {
+func parseArgs(argv []string) model.Arguments {
 	var dateString string
 	var s string
-	var a = A.Arguments{DoCount: false}
+	var a = model.Arguments{DoCount: false}
 	for len(argv) > 0 {
 		s = argv[0]
 		argv = argv[1:]
@@ -239,7 +238,11 @@ func parseArgs(argv []string) A.Arguments {
 
 		if "count" == s {
 			a.DoCount = true
-		} else if "per-day" == s {
+		} else if "per-day" == s || "day" == s {
+			a.DoCount = true
+			a.SumPerDay = true
+		} else if "count-per-day" == s {
+			a.DoCount = true
 			a.SumPerDay = true
 		} else if len(s) <= 3 {
 			a.Mark = s
@@ -258,7 +261,7 @@ func parseArgs(argv []string) A.Arguments {
 	return a
 }
 
-func open(args A.Arguments) *os.File {
+func open(args model.Arguments) *os.File {
 	var out* os.File
 	if len(args.OutPath) > 0 {
 		out, _ = openOutputFile(args.OutPath)
@@ -272,17 +275,22 @@ func open(args A.Arguments) *os.File {
 
 func main() {
 	var stampsFile * os.File
-	var args A.Arguments = parseArgs(os.Args[1:])
+	var args model.Arguments = parseArgs(os.Args[1:])
+	var err error
 
-	if args.DoCount {
-		R.Count(open(args), args)
-
+	if args.DoCount && args.SumPerDay {
+		err = report.CountPerDay(open(args))
+	} else if args.DoCount {
+		err = report.Count(open(args))
 	} else  {
 		stampsFile = open(args)
 		stampLine := writeStamp(stampsFile, args.Stamp, args.Mark)
 		_ = stampsFile.Close()
 		log.New(os.Stderr, "", 0).Print(fmt.Sprintf("%s -> %s\n", stampLine, stampsFile.Name()))
+	}
 
+	if nil != err {
+		log.New(os.Stderr, "", 0).Print(err)
 	}
 }
 
