@@ -97,7 +97,8 @@ func showLastTuple(stampLine string, args Arguments) {
 		stampsFile := Open(args)
 		_, tuples, _ := ParseRecords(stampsFile)
 		stampsFile.Close()
-		fmt.Println(lastTuple(tuples))
+		t := lastTuple(tuples)
+		fmt.Printf("%s  %5.2f\n", t.day, t.seconds/3600)
 	}
 
 }

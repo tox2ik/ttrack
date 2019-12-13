@@ -85,7 +85,13 @@ func AppendLog(args Arguments) {
 		}
 	}
 	stdErr.Println(logPath)
-	_ = exec.Command(os.Getenv("EDITOR"), logPath).Run() // todo: support vim, nano
+	cmd := exec.Command(os.Getenv("EDITOR"), logPath)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Run()
+	exec.Command("reset")
+
 }
 
 func AddStamp(args Arguments) string {
