@@ -1,9 +1,10 @@
-package report
+package main
 
 import (
 	"bufio"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"sort"
@@ -43,8 +44,15 @@ type record struct {
 }
 
 type tuple struct{
-	day     string
+	day string
 	seconds float32
+}
+
+type tuples struct {
+	items []tuple
+	total float32
+	totalHours float32
+	averageHours float32
 }
 
 func FileAsArray(file *os.File) []string {
@@ -56,8 +64,8 @@ func FileAsArray(file *os.File) []string {
 	return lines
 }
 
-
-func ParseRecords(file *os.File) ([]record, []tuple, error) {
+func ParseRecords(file *os.File) ([]record, tuples, error) {
+	file.Seek(0, io.SeekStart)
 	scanner := bufio.NewScanner(file)
 	records := make([]record, 0)
 	for scanner.Scan() {
@@ -75,21 +83,30 @@ func ParseRecords(file *os.File) ([]record, []tuple, error) {
 	}
 	var in int
 	var day string
-	tuples := make([]tuple, 0)
+	tuplesSlice := make([]tuple, 0)
 	for i, rec := range records {
 		if "in" == rec.mark {
 			day = rec.day
 			in = rec.stamp
 		} else {
 			if day != rec.day { log.New(os.Stderr, "", 0).Printf("Day mismatch for record: %d (%s,%s)", i, day, rec.day) }
-			tuples = append(tuples, tuple{day: day, seconds: float32(rec.stamp - in) })
+			tuplesSlice = append(tuplesSlice, tuple{day: day, seconds: float32(rec.stamp - in) })
 		}
 	}
+	total := float32(0)
+	for _, t := range tuplesSlice {
+		total += t.seconds
+	}
+	tupleSummary := tuples{
+		items: tuplesSlice,
+		total: total,
+		totalHours: total / 3600,
+		averageHours: total / 3600 / float32(len(tuplesSlice))}
 
 	if len(records) % 2 != 0 {
-		return records, tuples, errors.New("file contains unfinished stamps")
+		return records, tupleSummary, errors.New("file contains unfinished stamps")
 	}
-	return records, tuples, nil
+	return records, tupleSummary, nil
 }
 
 func FormatTuple(t tuple) string {
@@ -99,22 +116,22 @@ func FormatTuple(t tuple) string {
 func Count(file *os.File) error {
 	var total float32
 	_, tuples, parseError := ParseRecords(file)
-	for _, t := range tuples {
+	for _, t := range tuples.items {
 		fmt.Println(FormatTuple(t))
 		total += t.seconds
 	}
-	fmt.Printf("    total: %5.2f\n", total / 3600)
-	fmt.Printf("  average: %5.2f\n", total / 3600 / float32(len(tuples)))
+	fmt.Printf("    total: %5.2f\n", tuples.totalHours)
+	fmt.Printf("  average: %5.2f\n", tuples.averageHours)
 	return parseError
 }
 
 func CountPerDay(file *os.File) error {
-	var total float32
+	//var total float32
 	secondsPerDay := make(map[string]float32)
 	_, tuples, parseError := ParseRecords(file)
-	for _, t := range tuples {
+	for _, t := range tuples.items {
 		secondsPerDay[t.day] += t.seconds
-		total += t.seconds
+		//total += t.seconds
 	}
 	keys := make([]string, 0, len(secondsPerDay))
 	for key := range secondsPerDay { keys = append(keys, key) }
@@ -122,8 +139,8 @@ func CountPerDay(file *os.File) error {
 	for _, day := range keys {
 		fmt.Printf("%10s %5.2f\n", day, secondsPerDay[day] / 3600)
 	}
-	fmt.Printf("    total: %5.2f\n", total / 3600 )
-	fmt.Printf("  average: %5.2f\n", total / 3600 / float32(len(secondsPerDay)))
+	fmt.Printf("    total: %5.2f\n", tuples.totalHours )
+	fmt.Printf("  average: %5.2f\n", tuples.total / 3600 / float32(len(secondsPerDay)))
 	return parseError
 }
 

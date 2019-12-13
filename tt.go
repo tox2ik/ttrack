@@ -1,9 +1,6 @@
 package main
 
 import (
-	"../model"
-	"../report"
-	"./io"
 	"fmt"
 	"log"
 	"os"
@@ -49,10 +46,10 @@ func parseInputDate(inputDate string) (time.Time, error){
 	return time.Time{}, err
 }
 
-func parseArgs(argv []string) model.Arguments {
+func parseArgs(argv []string) Arguments {
 	var dateString string
 	var s string
-	var a = model.Arguments{DoCount: false}
+	var a = Arguments{DoCount: false}
 	for len(argv) > 0 {
 		s = argv[0]
 		argv = argv[1:]
@@ -67,7 +64,7 @@ func parseArgs(argv []string) model.Arguments {
 			strings.Contains(s, "days") ||
 			strings.Contains(s, "day"))
 
-		if "count" == s {
+		if "count" == s || "c" == s {
 			a.DoCount = true
 		} else if "per-day" == s || "day" == s {
 			a.DoCount = true
@@ -95,12 +92,12 @@ func parseArgs(argv []string) model.Arguments {
 	return a
 }
 
-func showLastTuple(stampLine string, args model.Arguments) {
+func showLastTuple(stampLine string, args Arguments) {
 	if strings.Contains(stampLine, "out:") {
-		stampsFile := io.Open(args)
-		_, tuples, _ := report.ParseRecords(stampsFile)
+		stampsFile := Open(args)
+		_, tuples, _ := ParseRecords(stampsFile)
 		stampsFile.Close()
-		fmt.Println(report.FormatTuple(tuples[len(tuples)-1]))
+		fmt.Println(lastTuple(tuples))
 	}
 
 }
@@ -110,15 +107,15 @@ func main() {
 	args := parseArgs(os.Args[1:])
 
 	if args.DoCount && args.SumPerDay {
-		err = report.CountPerDay(io.Open(args))
+		err = CountPerDay(Open(args))
 	} else if args.DoCount {
-		err = report.Count(io.Open(args))
+		err = Count(Open(args))
 	} else if args.DoLog {
-		io.AppendLog(args)
+		AppendLog(args)
 	} else if args.DoMark {
-		io.MarkSession(args)
+		MarkSession(args)
 	} else  {
-		showLastTuple(io.AddStamp(args), args)
+		showLastTuple(AddStamp(args), args)
 	}
 
 	if nil != err {

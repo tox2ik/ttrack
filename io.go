@@ -1,11 +1,8 @@
-package io
+package main
 
 import (
-	"../../model"
-	"../../report"
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"path"
@@ -13,15 +10,7 @@ import (
 	"time"
 )
 
-var stdErr = log.New(os.Stderr, "", 0)
-
-func die(e error) {
-	if e != nil {
-		panic(e)
-	}
-}
-
-func Open(args model.Arguments) *os.File {
+func Open(args Arguments) *os.File {
 	var out* os.File
 	if len(args.OutPath) > 0 {
 		out, _ = OpenOutputFile(args.OutPath)
@@ -72,16 +61,24 @@ func OpenCurrentMonthOutputFile(t time.Time) (*os.File, error) {
 	return & os.File{}, err
 }
 
+func lastTuple(tc tuples) tuple {
+	length := len(tc.items)
+	if length == 0 {
+		return tuple{}
+	}
+	return tc.items[length-1]
+}
 
-func AppendLog(args model.Arguments) {
+
+func AppendLog(args Arguments) {
 	stampsFile := Open(args)
-	_, tuples, _ := report.ParseRecords(stampsFile)
+	_, tuples, _ := ParseRecords(stampsFile)
 	logPath := path.Dir(stampsFile.Name()) + "/" +  path.Base(stampsFile.Name()) + ".log"
 	logFile, _ := OpenOutputFile(logPath)
-	logFile.WriteString(strings.TrimSpace(report.FormatTuple(tuples[len(tuples)-1])) + ": describe activity...\n")
+	logFile.WriteString(strings.TrimSpace(FormatTuple(lastTuple(tuples))) + ": describe activity...\n")
 	logFile.Close()
 	logFile, _ = OpenOutputFile(logPath)
-	lines := report.FileAsArray(logFile)
+	lines := FileAsArray(logFile)
 	for i := 3; i >= 1; i-- {
 		if len(lines) >= i {
 			fmt.Println(lines[len(lines)-i])
@@ -91,7 +88,7 @@ func AppendLog(args model.Arguments) {
 	_ = exec.Command(os.Getenv("EDITOR"), logPath).Run() // todo: support vim, nano
 }
 
-func AddStamp(args model.Arguments) string {
+func AddStamp(args Arguments) string {
 	stampsFile := Open(args)
 	stampLine := writeStamp(stampsFile, args.Stamp, args.Mark)
 	stampsFile.Close()
@@ -99,7 +96,7 @@ func AddStamp(args model.Arguments) string {
 	return stampLine
 }
 
-func MarkSession(args model.Arguments) {
+func MarkSession(args Arguments) {
 	stampsFile := Open(args)
 	writeStamp(stampsFile, args.Stamp, "out")
 	writeStamp(stampsFile, args.Stamp, "in")
@@ -111,16 +108,18 @@ func MarkSession(args model.Arguments) {
 
 func writeStamp(out *os.File, stamp time.Time, mark string) string {
 	var err error
-	if len(mark) > 0 {
-		err := enforceSequence(noramalizeMark(mark), out)
-		if nil != err {
-			panic(err)
-		}
-	} else {
+	mark = normalizeMark(mark)
+	if len(mark) == 0 {
 		lastMark := identifyLastStamp(out.Name())
 		mark = determineNextStamp(lastMark)
+	} else if mark == "in" || mark == "out" {
+		err = enforceSequence(mark, out)
+		die(err)
+	} else {
+		panic(errors.New(fmt.Sprintf("Invalid stamp-mark %s", mark)))
 	}
-	stampLine := formatTime(stamp, noramalizeMark(mark))
+
+	stampLine := formatTime(stamp, mark)
 	_, err = out.WriteString(stampLine+"\n")
 	die(err)
 	out.Sync()
@@ -139,8 +138,8 @@ func formatTime(t time.Time, mark string) string {
 		t.Unix())
 }
 
-func noramalizeMark(mark string) string {
-	r := "in"
+func normalizeMark(mark string) string {
+	r := mark
 	switch mark {
 	case "inn": r = "in"
 	case "ut": r = "out"

@@ -2,12 +2,11 @@ package main
 
 import (
 	"os"
-	io "./io"
 	"strings"
 	"testing"
 	"time"
+	"github.com/stretchr/testify/assert"
 )
-
 
 var out *os.File
 
@@ -26,6 +25,8 @@ func expectPanic(t *testing.T) {
 }
 
 
+// todo: use a memory buffer https://stackoverflow.com/questions/40316052/in-memory-file-for-testing
+
 func TestFirstStamp(t *testing.T) {
 	last := identifyLastStamp("/dev/null")
 	if determineNextStamp(last) != "in" {
@@ -34,7 +35,7 @@ func TestFirstStamp(t *testing.T) {
 }
 
 func TestSecondStamp(t *testing.T) {
-	out, _ = io.OpenOutputFile("/tmp/ttrack")
+	out, _ = OpenOutputFile("/tmp/ttrack")
 	writeStamp(out, time.Now(), "")
 	writeStamp(out, time.Now(), "")
 	if identifyLastStamp("/tmp/ttrack") != "out" {
@@ -44,30 +45,39 @@ func TestSecondStamp(t *testing.T) {
 
 func TestOutOfSequenceA(t *testing.T) {
 	defer expectPanic(t)
-	out, _ = io.OpenOutputFile("/tmp/ttrack")
+	out, _ = OpenOutputFile("/tmp/ttrack")
 	writeStamp(out, time.Now(), "in")
 	writeStamp(out, time.Now(), "in")
 }
 
 func TestOutOfSequenceB(t *testing.T) {
 	defer expectPanic(t)
-	out, _ = io.OpenOutputFile("/tmp/ttrack")
+	out, _ = OpenOutputFile("/tmp/ttrack")
 	writeStamp(out, time.Now(), "out")
 	writeStamp(out, time.Now(), "out")
 }
 
 func TestInvalidMark(t *testing.T) {
 	defer expectPanic(t)
-	out, _ = io.OpenOutputFile("/tmp/ttrack")
+	out, _ = OpenOutputFile("/tmp/ttrack")
 	writeStamp(out, time.Now(), "typo")
 }
 
 
 func TestSupportUtasOut(t *testing.T) {
-	//defer expectPanic(t)
-	out, _ = io.OpenOutputFile("/tmp/ttrack")
+	out, _ = OpenOutputFile("/tmp/ttrack")
+	writeStamp(out, time.Now(), "inn")
 	s := writeStamp(out, time.Now(), "ut")
 	if ! strings.Contains(s, "out") {
-		t.Errorf("should have converted ut to out")
+		t.Errorf("should have converted ut to out, inn to in")
 	}
+}
+
+func TestHalfHour(t *testing.T) {
+	out, _ = OpenOutputFile("/tmp/ttrack")
+	writeStamp(out, time.Now(), "in")
+	writeStamp(out, time.Now().Add(time.Duration(time.Minute * 30)), "out")
+	out.Sync()
+	_, tuples, _ := ParseRecords(out)
+	assert.Equal(t, float32(1800), tuples.total, "30 min should be 1800 seconds")
 }

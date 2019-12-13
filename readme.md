@@ -55,6 +55,9 @@ You may edit the log file and describe what you did.
         total:  1.90
       average:  1.90
 
+### Custom time
+
+Time parsing in handled by `date -d` from GNU Coreutils unless specified as `yyyy-mm-dd hh:mm:ss`.
     
 ## Typical records file
 

@@ -44,7 +44,7 @@
 
 ## Help
 
-- [ ] document user-flags and commands
-    - [ ] in/out mark
-    - [ ] custom-time
+- [x] document user-flags and commands
+    - [x] in/out mark
+    - [x] custom-time
     
