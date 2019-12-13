@@ -5,11 +5,11 @@
 - [x] log timestamps
     - [x] log in, log out
 - [x] log custom date
-- [ ] mark chunk: log out; log in
+- [x] mark chunk: log out; log in
 - [ ] log sick-leave
     - [ ] include sick-leave in calculation
     - [ ] define standard hours
-- [ ] print duration of last entry when logging out.
+- [x] print duration of last entry when logging out.
 
 ## usability
 
@@ -18,9 +18,10 @@
 ## logic
 
 - [x] wite to file for current month in $TIMETRACK_DIR (~/ttrack)
-- [ ] auto close/open stamp based on previous stamp
+- [x] auto close/open stamp based on previous stamp
     - [x] in -> out; out -> in
-    - [ ] warn if day not same, - [ ] offer to close last day with prompt, auto open for today
+    - [ ] warn if day not same, 
+    - [ ] offer to close last day with prompt, auto open for today
 
 ## Parsing
 

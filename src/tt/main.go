@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path"
 	"strings"
 	"time"
 )
@@ -16,6 +17,8 @@ var printf = fmt.Printf
 var sprintf = fmt.Sprintf
 var echo = fmt.Println
 var ln = fmt.Println
+
+var stdErr = log.New(os.Stderr, "", 0)
 
 func die(e error) {
 	if e != nil {
@@ -155,8 +158,6 @@ func identifyLastStamp(path string) string {
 	return "in"
 }
 
-
-
 // in : 2007-03-04 12:20:00 1173010800
 // out: 2007-03-04 12:20:00 1173010800
 func formatTime(t time.Time, mark string) string {
@@ -205,8 +206,6 @@ func enforceSequence(requestedMark string, out *os.File) error {
 	return nil
 }
 
-
-
 func writeStamp(out *os.File, stamp time.Time, mark string) string {
 	var err error
 	if len(mark) > 0 {
@@ -226,7 +225,6 @@ func writeStamp(out *os.File, stamp time.Time, mark string) string {
 }
 
 
-
 func parseArgs(argv []string) model.Arguments {
 	var dateString string
 	var s string
@@ -244,7 +242,10 @@ func parseArgs(argv []string) model.Arguments {
 		} else if "count-per-day" == s {
 			a.DoCount = true
 			a.SumPerDay = true
-		} else if len(s) <= 3 {
+		} else if s == "mark" {
+		} else if s == "log" {
+			a.DoLog = true
+		} else if s ==  "in" || s == "out" {
 			a.Mark = s
 		} else if isStamp {
 			dateString = s
@@ -272,7 +273,6 @@ func open(args model.Arguments) *os.File {
 }
 
 
-
 func main() {
 	var stampsFile * os.File
 	var args model.Arguments = parseArgs(os.Args[1:])
@@ -282,16 +282,52 @@ func main() {
 		err = report.CountPerDay(open(args))
 	} else if args.DoCount {
 		err = report.Count(open(args))
+
+	} else if args.DoLog {
+		appendLog(args)
+
+	} else if args.DoMark {
+		stampsFile = open(args)
+		writeStamp(stampsFile, args.Stamp, "out")
+		writeStamp(stampsFile, args.Stamp, "in")
+		stampsFile.Close()
+		if args.DoLog {
+			appendLog(args)
+		}
+
 	} else  {
 		stampsFile = open(args)
 		stampLine := writeStamp(stampsFile, args.Stamp, args.Mark)
-		_ = stampsFile.Close()
-		log.New(os.Stderr, "", 0).Print(fmt.Sprintf("%s -> %s\n", stampLine, stampsFile.Name()))
+		stampsFile.Close()
+		stdErr.Printf("%s -> %s\n", stampLine, stampsFile.Name())
+		if strings.Contains(stampLine, "out:") {
+			stampsFile = open(args)
+			_, tuples, _ := report.ParseRecords(stampsFile)
+			stampsFile.Close()
+			fmt.Print(report.FormatTuple(tuples[len(tuples)-1]))
+		}
 	}
 
 	if nil != err {
-		log.New(os.Stderr, "", 0).Print(err)
+		stdErr.Print(err)
 	}
+}
+
+func appendLog(args model.Arguments) {
+	stampsFile := open(args)
+	_, tuples, _ := report.ParseRecords(stampsFile)
+	logPath := path.Dir(stampsFile.Name()) + "/" +  path.Base(stampsFile.Name()) + ".log"
+	logFile, _ := openOutputFile(logPath)
+	logFile.WriteString(strings.TrimSpace(report.FormatTuple(tuples[len(tuples)-1])) + ": describe activity...\n")
+	logFile.Close()
+	logFile, _ = openOutputFile(logPath)
+	lines := report.FileAsArray(logFile)
+	for i := 3; i >= 1; i-- {
+		if len(lines) >= i {
+			fmt.Println(lines[len(lines)-i])
+		}
+	}
+	//_ = exec.Command(os.Getenv("EDITOR"), logPath).Run()
 }
 
 

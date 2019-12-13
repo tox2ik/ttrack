@@ -6,6 +6,8 @@ type Arguments struct {
 	Stamp time.Time
 	Mark string
 	OutPath string
-	DoCount bool
 	SumPerDay bool
+	DoCount bool
+	DoMark bool
+	DoLog bool
 }
