@@ -1,14 +1,76 @@
 package main
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path"
+	"strconv"
 	"strings"
 	"time"
 )
+
+func ParseRecords(file *os.File) ([]Record, Tuples, error) {
+	if _, err := file.Seek(0, io.SeekStart); err != nil {
+		return nil, Tuples{Items: make([]Tuple, 0)}, err
+	}
+	scanner := bufio.NewScanner(file)
+	records := make([]Record, 0)
+	for scanner.Scan() {
+		line := strings.Trim(strings.ReplaceAll(scanner.Text(), "  ", " "), " ")
+		fields := strings.Split(line, " ")
+		if len(fields) >= 4 {
+			ts := uint32(0)
+			if u64, err := strconv.ParseUint(fields[3], 10, 32); err == nil {
+				ts = uint32(u64)
+			} else {
+				debug("Bad integer in line %s: %s. Error; %s", line, fields[3], err)
+			}
+			rec := Record{
+				Mark:  strings.ToLower(strings.Replace(fields[0], ":", "", 1)),
+				Day:   fields[1],
+				Time:  fields[2],
+				Stamp: ts}
+			records = append(records, rec)
+		}
+	}
+	day := "1970-01-01"
+	allTuples := make([]Tuple, 0)
+	in := uint32(0)
+	var last Record
+	for i, rec := range records {
+		if rec.isIn() {
+			last = rec
+			day = rec.Day
+			in = rec.Stamp
+		}
+
+		if rec.isOut() {
+			if day != rec.Day {
+				// todo: should support over-midnight stamps
+				debug("warn: day mismatch for Record: %d (%s,%s)", i, day, rec.Day)
+			}
+			allTuples = append(
+				allTuples,
+				Tuple{
+					Day: day,
+					Seconds: float32(rec.Stamp - in),
+					in: &last, // Unnecessary to keep reference here.
+					out: &rec, //  Should just set isValid if both present.
+				})
+			day = ""
+		}
+	}
+
+	if len(records)%2 != 0 {
+		// return records, Tuples{Items: allTuples}, errors.New("file contains unfinished stamps")
+		debug("file contains unfinished stamps")
+	}
+	return records, Tuples{Items: allTuples}, nil
+}
 
 func Open(args Arguments) *os.File {
 	var out* os.File
@@ -61,12 +123,12 @@ func OpenCurrentMonthOutputFile(t time.Time) (*os.File, error) {
 	return & os.File{}, err
 }
 
-func lastTuple(tc tuples) tuple {
-	length := len(tc.items)
+func lastTuple(tc Tuples) Tuple {
+	length := len(tc.Items)
 	if length == 0 {
-		return tuple{}
+		return Tuple{}
 	}
-	return tc.items[length-1]
+	return tc.Items[length-1]
 }
 
 
@@ -122,7 +184,7 @@ func writeStamp(out *os.File, stamp time.Time, mark string) string {
 		err = enforceSequence(mark, out)
 		die(err)
 	} else {
-		panic(errors.New(fmt.Sprintf("Invalid stamp-mark %s", mark)))
+		panic(errors.New(fmt.Sprintf("Invalid Stamp-Mark %s", mark)))
 	}
 
 	stampLine := formatTime(stamp, mark)
@@ -199,7 +261,7 @@ func identifyLastStamp(path string) string {
 
 
 	if lastIndex <= 0 {
-		return "" //  first record is always in? ... maybe
+		return "" //  first Record is always in? ... maybe
 	}
 	if lastIndex >=2 {
 		for lastLn = lastIndex; lastLn >-1; {

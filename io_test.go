@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+
 	"github.com/stretchr/testify/assert"
 )
 
@@ -77,7 +78,8 @@ func TestHalfHour(t *testing.T) {
 	out, _ = OpenOutputFile("/tmp/ttrack")
 	writeStamp(out, time.Now(), "in")
 	writeStamp(out, time.Now().Add(time.Duration(time.Minute * 30)), "out")
-	out.Sync()
-	_, tuples, _ := ParseRecords(out)
-	assert.Equal(t, float32(1800), tuples.total, "30 min should be 1800 seconds")
+	_ = out.Sync()
+	_, tuples, err := ParseRecords(out)
+	assert.Empty(t, err)
+	assert.Equal(t, float32(1800), tuples.Seconds(), "30 min should be 1800 Seconds")
 }

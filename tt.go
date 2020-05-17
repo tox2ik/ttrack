@@ -32,7 +32,7 @@ func parseInputDate(inputDate string) (time.Time, error){
 		// maybe-todo: handle schmuck-os date and winders.
 		var out []byte
 		// The semantics of GNU `date -d` are moset useful and you should consider installing coreutils.
-		// For more info read `info date`; section 29.7 Relative items in date strings
+		// For more info read `info date`; section 29.7 Relative Items in date strings
 		// https://www.gnu.org/software/coreutils/manual/html_node/Relative-items-in-date-strings.html#Relative-items-in-date-strings
 		// The intro-quote of section 29 Date input formats is also worth a read.
 		out, err = exec.Command("date", "--rfc-email", "-d", inputDate).Output()
@@ -62,17 +62,17 @@ func parseArgs(argv []string) Arguments {
 			strings.Contains(s, "hour") ||
 			strings.Contains(s, "minute") ||
 			strings.Contains(s, "days") ||
-			strings.Contains(s, "day"))
+			strings.Contains(s, "Day"))
 
 		if "count" == s || "c" == s {
 			a.DoCount = true
-		} else if "per-day" == s || "day" == s {
+		} else if "per-Day" == s || "Day" == s {
 			a.DoCount = true
 			a.SumPerDay = true
-		} else if "count-per-day" == s {
+		} else if "count-per-Day" == s {
 			a.DoCount = true
 			a.SumPerDay = true
-		} else if s == "mark" {
+		} else if s == "Mark" {
 		} else if s == "log" {
 			a.DoLog = true
 		} else if s ==  "in" || s == "out" {
@@ -98,7 +98,7 @@ func showLastTuple(stampLine string, args Arguments) {
 		_, tuples, _ := ParseRecords(stampsFile)
 		stampsFile.Close()
 		t := lastTuple(tuples)
-		fmt.Printf("%s  %5.2f\n", t.day, t.seconds/3600)
+		fmt.Printf("%s  %5.2f\n", t.Day, t.Seconds/3600)
 	}
 
 }
