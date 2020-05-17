@@ -1,16 +1,5 @@
 package main
 
-import "time"
-
-type Arguments struct {
-	Stamp     time.Time
-	Mark      string
-	OutPath   string
-	SumPerDay bool
-	DoCount   bool
-	DoMark    bool
-	DoLog     bool
-}
 
 // Represents a point in Time.
 //
