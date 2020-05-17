@@ -83,3 +83,38 @@ func TestHalfHour(t *testing.T) {
 	assert.Empty(t, err)
 	assert.Equal(t, float32(1800), tuples.Seconds(), "30 min should be 1800 Seconds")
 }
+
+func TestUnseekable(t *testing.T) {
+	var file *os.File
+	_, _, _ = ParseRecords(file)
+	expectPanic(t)
+}
+
+/*
+func TestOpenMonth(t *testing.T) {
+	month := Open(Arguments{})
+	fi, _ := month.Stat()
+	fm := fi.Mode().Perm()
+	fmt.Printf("%b\n", fm)
+	fmt.Printf("%o\n", fm)
+	fmt.Printf("%v\n", (fm & 0o200) == 0o200)
+	fmt.Printf("%v\n", (fm & 0o020) == 0o020)
+	fmt.Printf("%v\n", (fm & 0o002) == 0o002)
+	fmt.Printf("%o\n", fm)
+
+	fmt.Printf("---\n")
+	fmt.Printf("%4d  %5o  %010b\n", 493, 493, 493)
+	fmt.Printf("%4d  %5o  %010b\n", 40,  40,  40)
+	fmt.Printf("%4d  %5o  %010b\n", 5,   5,   5)
+	fmt.Printf("---------------\n")
+	fmt.Printf("%4d  %5o  %010b\n", 0o755, 0o755, 0o755 )
+	fmt.Printf("%4d  %5o  %010b\n", 0o50,  0o50,  0o50 )
+	fmt.Printf("%4d  %5o  %010b\n", 0o5,   0o5,   0o5 )
+	fmt.Printf("---------------\n")
+
+	fmt.Printf("%4d  %5o  %010b\n", 1<<uint(0), 1<<uint(0), 1<<uint(0))
+	fmt.Printf("%4d  %5o  %010b\n", 1<<uint(1), 1<<uint(1), 1<<uint(1))
+	fmt.Printf("%4d  %5o  %010b\n", 1<<uint(2), 1<<uint(2), 1<<uint(2))
+
+}
+*/
