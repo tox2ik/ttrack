@@ -13,6 +13,38 @@ import (
 	"time"
 )
 
+
+func parseGnuDate(inputDate string) (time.Time, error) {
+	var t time.Time
+	var err error
+	var out []byte
+	formats := [...] string{
+		"2018-01-20 04:35:11",
+		"12:59:59",
+	}
+	for _, e := range formats {
+		t, err = time.Parse(e, inputDate)
+		if err == nil {
+			break
+		}
+	}
+	if err != nil {
+		// maybe-todo: handle schmuck-os date and winders.
+		// The semantics of GNU `date -d` are most useful and you should consider installing GNU coreutils.
+		// For more info read `info date`; section 29.7 Relative Items in date strings
+		// https://www.gnu.org/software/coreutils/manual/html_node/Relative-items-in-date-strings.html#Relative-items-in-date-strings
+		// The intro-quote of section 29 Date input formats is also worth a read.
+		out, err = exec.Command("date", "--rfc-email", "-d", inputDate).Output()
+		t, err = time.Parse(time.RFC1123Z, strings.Trim(string(out), "\n"))
+	}
+	if nil == err {
+		return t, nil
+	}
+	debug("Failed to parse time: %s", inputDate)
+	return time.Time{}, err
+}
+
+
 func ParseRecords(file *os.File) ([]Record, Tuples, error) {
 	if _, err := file.Seek(0, io.SeekStart); err != nil {
 		return nil, Tuples{Items: make([]Tuple, 0)}, err
@@ -66,7 +98,6 @@ func ParseRecords(file *os.File) ([]Record, Tuples, error) {
 	}
 
 	if len(records)%2 != 0 {
-		// return records, Tuples{Items: allTuples}, errors.New("file contains unfinished stamps")
 		debug("file contains unfinished stamps")
 	}
 	return records, Tuples{Items: allTuples}, nil
@@ -85,7 +116,6 @@ func Open(args Arguments) *os.File {
 func createStorageFolder(ttdir string) (string, error) {
 	var home = os.Getenv("HOME")
 	var direnv = os.Getenv("TIMETRACK_DIR")
-	//var ttdir string
 
 	if len(ttdir) == 0 {
 		if len(direnv) >= 1 {
@@ -158,6 +188,9 @@ func AppendLog(args Arguments) {
 
 func AddStamp(args Arguments) string {
 	stampsFile := Open(args)
+	if args.DoDry {
+		die(fmt.Errorf("add dry not implemented"))
+	}
 	stampLine := writeStamp(stampsFile, args.Stamp, args.Mark)
 	stampsFile.Close()
 	stdErr.Printf("%s -> %s\n", stampLine, stampsFile.Name())
@@ -166,6 +199,9 @@ func AddStamp(args Arguments) string {
 
 func MarkSession(args Arguments) {
 	stampsFile := Open(args)
+	if args.DoDry {
+		die(fmt.Errorf("mark dry not implemented"))
+	}
 	writeStamp(stampsFile, args.Stamp, "out")
 	writeStamp(stampsFile, args.Stamp, "in")
 	stampsFile.Close()

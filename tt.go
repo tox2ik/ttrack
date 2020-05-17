@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"os/exec"
 	"strings"
 	"time"
+
+	"github.com/jessevdk/go-flags"
 )
 
 var stdErr = log.New(os.Stderr, "", 0)
@@ -17,33 +18,16 @@ func die(e error) {
 	}
 }
 
-func parseInputDate(inputDate string) (time.Time, error){
-	var t time.Time
-	var err error
-	formats := [...] string {
-		"2018-01-20 04:35:11",
-		"12:59:59",
-	}
-	for _, e := range formats {
-		t, err = time.Parse(e, inputDate)
-		if err == nil { break }
-	}
-	if err != nil {
-		// maybe-todo: handle schmuck-os date and winders.
-		var out []byte
-		// The semantics of GNU `date -d` are moset useful and you should consider installing coreutils.
-		// For more info read `info date`; section 29.7 Relative Items in date strings
-		// https://www.gnu.org/software/coreutils/manual/html_node/Relative-items-in-date-strings.html#Relative-items-in-date-strings
-		// The intro-quote of section 29 Date input formats is also worth a read.
-		out, err = exec.Command("date", "--rfc-email", "-d", inputDate).Output()
-		osDate := strings.Trim(fmt.Sprintf("%s", out), "\n")
-		t, err = time.Parse(time.RFC1123Z, osDate)
-	}
-	die(err)
-	if nil == err {
-		return t, nil;
-	}
-	return time.Time{}, err
+type Arguments struct {
+	DoCount   bool `short:"c" long:"count" description:"Count stamps"`
+	DoLog     bool `short:"l" long:"log" description:"Describe last time stamp"`
+	DoMark    bool `short:"m" long:"mark" description:"Sign out and back in"`
+	DoDry     bool `short:"n" long:"dry" description:"Dry run"`
+	SumPerDay bool `short:"s" long:"sum" description:"Count average per day"`
+
+	Stamp   time.Time `short:"d" long:"date" description:"Time to record"`
+	OutPath string
+	Mark    string `short:"r" long:"record" description:"Sign in or out" choice:"in" choice:"out"`
 }
 
 func parseArgs(argv []string) Arguments {
