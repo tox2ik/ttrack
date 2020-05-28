@@ -11,13 +11,6 @@ import (
 
 var out *os.File
 
-func TestMain(m *testing.M) {
-	_ = os.Remove("/tmp/ttrack")
-	code := m.Run()
-
-	_ = os.Remove("/tmp/ttrack")
-	os.Exit(code)
-}
 
 func expectPanic(t *testing.T) {
 	if r := recover(); r == nil {
@@ -36,17 +29,18 @@ func TestFirstStamp(t *testing.T) {
 }
 
 func TestSecondStamp(t *testing.T) {
-	out, _ = OpenOutputFile("/tmp/ttrack")
+	sFile := TtStampFileX()
+	out, _ = OpenOutputFile(sFile)
 	writeStamp(out, time.Now(), "")
 	writeStamp(out, time.Now(), "")
-	if identifyLastStamp("/tmp/ttrack") != "out" {
+	if identifyLastStamp(sFile) != "out" {
 		t.Errorf("out follows in")
 	}
 }
 
 func TestOutOfSequenceA(t *testing.T) {
 	defer expectPanic(t)
-	out, _ = OpenOutputFile("/tmp/ttrack")
+	out, _ = OpenOutputFile(TtStampFileX())
 	writeStamp(out, time.Now(), "in")
 	writeStamp(out, time.Now(), "in")
 }
@@ -60,13 +54,14 @@ func TestOutOfSequenceB(t *testing.T) {
 
 func TestInvalidMark(t *testing.T) {
 	defer expectPanic(t)
-	out, _ = OpenOutputFile("/tmp/ttrack")
+	out, _ = OpenOutputFile(TtStampFileX())
 	writeStamp(out, time.Now(), "typo")
 }
 
 
 func TestSupportUtasOut(t *testing.T) {
-	out, _ = OpenOutputFile("/tmp/ttrack")
+	wipeTestFile()
+	out, _ = OpenOutputFile(TtStampFileX())
 	writeStamp(out, time.Now(), "inn")
 	s := writeStamp(out, time.Now(), "ut")
 	if ! strings.Contains(s, "out") {
@@ -75,9 +70,12 @@ func TestSupportUtasOut(t *testing.T) {
 }
 
 func TestHalfHour(t *testing.T) {
-	out, _ = OpenOutputFile("/tmp/ttrack")
-	writeStamp(out, time.Now(), "in")
-	writeStamp(out, time.Now().Add(time.Duration(time.Minute * 30)), "out")
+	sFile := TtStampFileX()
+	out, _ = OpenOutputFile(sFile)
+
+	twelve := time.Date(2020, 5, 5, 12, 0, 0, 0, time.UTC)
+	writeStamp(out, twelve, "in")
+	writeStamp(out, twelve.Add(time.Duration(time.Minute * 30)), "out")
 	_ = out.Sync()
 	_, tuples, err := ParseRecords(out)
 	assert.Empty(t, err)
@@ -86,8 +84,10 @@ func TestHalfHour(t *testing.T) {
 
 func TestUnseekable(t *testing.T) {
 	var file *os.File
-	_, _, _ = ParseRecords(file)
-	expectPanic(t)
+	defer expectPanic(t)
+	if _, _, err := ParseRecords(file); err != nil {
+		panic(err)
+	}
 }
 
 /*

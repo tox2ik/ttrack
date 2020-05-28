@@ -91,8 +91,18 @@ func guessArgs(argv []string, a *Arguments) []string {
 		a.Stamp = stamp
 	} else {
 		// the default action is to stamp in or out at the current time.
+		zero := a.Stamp
 		a.Stamp = time.Now()
+		if a.DoCount || a.DoLog {
+			a.Stamp = zero
+		}
 	}
+
+	if a.DoCount && len(a.OutPath) == 0 {
+		a.Stamp = time.Now() // count from current-month-file
+
+	}
+
 	return tail
 }
 
@@ -128,11 +138,8 @@ func showLastTuple(stampLine string, args Arguments) {
 
 }
 
-func main() {
+func parseAndRun(runPar Arguments) error {
 	var err error
-	runPar := parseArgs(os.Args[1:])
-	fmt.Printf("%#v\n\n\n", runPar)
-
 	if runPar.SumPerDay {
 		runPar.DoCount = true
 		err = CountPerDay(Open(runPar))
@@ -150,12 +157,23 @@ func main() {
 
 	ls := ""
 
-	if ! runPar.Stamp.IsZero() {
-		ls = AddStamp(runPar)
-	}
-	showLastTuple(ls, runPar)
 
-	if nil != err {
+	if ! (runPar.DoCount || runPar.DoLog) {
+		if ! runPar.Stamp.IsZero() {
+			ls = AddStamp(runPar)
+		}
+		showLastTuple(ls, runPar)
+	}
+	return err
+
+}
+
+func main() {
+	// fmt.Printf("%#v\n\n\n", runPar)
+	//fmt.Println("tt.main()")
+
+	args := parseArgs(os.Args[1:])
+	if err := parseAndRun(args); nil != err {
 		stdErr.Print(err)
 	}
 }

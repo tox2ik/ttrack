@@ -211,6 +211,7 @@ func MarkSession(args Arguments) {
 }
 
 func writeStamp(out *os.File, stamp time.Time, mark string) string {
+	//fmt.Printf("writeStamp(%s, %s, %s)\n", out.Name(), stamp.Format(time.RFC3339), mark)
 	var err error
 	mark = normalizeMark(mark)
 	if len(mark) == 0 {
