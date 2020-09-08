@@ -1,0 +1,4 @@
+- [ ] decide output dir from var
+- [ ] fix mark
+- [ ] add help/-h/--help
+- [ ] add dry-run
