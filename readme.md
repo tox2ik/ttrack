@@ -5,13 +5,20 @@ A cli utility for tracking time.
 ## Todo
 
 
-- dry run with -n => show what the state would be after applying the current stamp
-- test: ttrack '07:00'; ttrack '18:00'
-        ttrack 'yesterday 09:00'; ttrack 'yesterday 17:00'; 
-- test: mark from 'out' state
-  seems like it adds in but not out.
-
-- add: e for edit
+- [ ] dry run with -n => show what the state would be after applying the current stamp
+- [ ] write tests
+    - [ ] ttrack '07:00'; ttrack '18:00'  
+    - [ ] ttrack 'yesterday 09:00'; ttrack 'yesterday 17:00'; 
+    - [ ] mark from 'out' state; seems like it adds in but not out.
+- [ ] e for edit (stamp file); el edit-log (log file)
+- [ ] ask for confirmation when writing to a new file that does not look like a month
+- [ ] t or today for listing current stamps
+- [ ] parse "simple" fuzzy dates with a few formats  
+      https://stackoverflow.com/questions/41329583/relative-date-parsing
+      https://github.com/tj/go-naturaldate/blob/master/naturaldate_test.ghttps://cto.ai/static/hero-visual-centered-slack.pngo
+- [ ] continue verb to add a samp one-second after the last
+- [ ] stamp / log sick-leave
+- [ ] improve '20 min ago' behavior -> imply today
 
 
 ## Usage

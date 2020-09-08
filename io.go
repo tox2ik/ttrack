@@ -165,7 +165,7 @@ func lastTuple(tc Tuples) Tuple {
 func AppendLog(args Arguments) {
 	stampsFile := Open(args)
 	_, tuples, _ := ParseRecords(stampsFile)
-	logPath := path.Dir(stampsFile.Name()) + "/" +  path.Base(stampsFile.Name()) + ".log"
+	logPath := path.Join( path.Dir(stampsFile.Name()), path.Base(stampsFile.Name()) + ".log")
 	logFile, _ := OpenOutputFile(logPath)
 	logFile.WriteString(strings.TrimSpace(FormatTuple(lastTuple(tuples))) + ": describe activity...\n")
 	logFile.Close()

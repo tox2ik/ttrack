@@ -73,14 +73,17 @@ func guessArgs(argv []string, a *Arguments) []string {
 
 		if head == "mark" {
 			a.DoMark = true
+			continue
 		}
 
 		if head == "log" {
 			a.DoLog = true
+			continue
 		}
 
 		if head == "in" || head == "out" {
 			a.Mark = head
+			continue
 		}
 
 		a.OutPath = head
@@ -93,7 +96,7 @@ func guessArgs(argv []string, a *Arguments) []string {
 		// the default action is to stamp in or out at the current time.
 		zero := a.Stamp
 		a.Stamp = time.Now()
-		if a.DoCount || a.DoLog {
+		if a.DoCount {
 			a.Stamp = zero
 		}
 	}
@@ -109,8 +112,6 @@ func guessArgs(argv []string, a *Arguments) []string {
 func parseArgs(argv []string) Arguments {
 
 	aa := Arguments{}
-	// aa.Stamp = time.Now()
-
 	rest, err := flags.ParseArgs(&aa, os.Args[1:])
 
 	rest = guessArgs(rest, &aa)
@@ -127,16 +128,6 @@ func parseArgs(argv []string) Arguments {
 	return aa
 }
 
-func showLastTuple(stampLine string, args Arguments) {
-	if strings.Contains(stampLine, "out:") {
-		stampsFile := Open(args)
-		_, tuples, _ := ParseRecords(stampsFile)
-		stampsFile.Close()
-		t := lastTuple(tuples)
-		fmt.Printf("%s  %5.2f\n", t.Day, t.Seconds/3600)
-	}
-
-}
 
 func parseAndRun(runPar Arguments) error {
 	var err error
@@ -161,10 +152,22 @@ func parseAndRun(runPar Arguments) error {
 	if ! (runPar.DoCount || runPar.DoLog) {
 		if ! runPar.Stamp.IsZero() {
 			ls = AddStamp(runPar)
+
+			showLastTuple(ls, runPar)
 		}
-		showLastTuple(ls, runPar)
 	}
 	return err
+
+}
+
+func showLastTuple(stampLine string, args Arguments) {
+	if strings.Contains(stampLine, "out:") {
+		stampsFile := Open(args)
+		_, tuples, _ := ParseRecords(stampsFile)
+		stampsFile.Close()
+		t := lastTuple(tuples)
+		fmt.Printf("%s  %5.2f\n", t.Day, t.Seconds/3600)
+	}
 
 }
 
