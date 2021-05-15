@@ -6,6 +6,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/jessevdk/go-flags"
+
 	. "genja.org/ttrack/model"
 	"genja.org/ttrack/ttio"
 )
@@ -13,7 +15,7 @@ import (
 var stdErr = log.New(os.Stderr, "", 0)
 
 
-func parseAndRun(args Arguments) (err error) {
+func act(args Arguments) (err error) {
 	var tuples Tuples
 
 	if args.SumPerDay {
@@ -48,9 +50,9 @@ func parseAndRun(args Arguments) (err error) {
 
 	ls := ""
 
-
-	if ! (args.DoCount || args.DoLog) {
-		if ! args.Stamp.IsZero() {
+	addStampByDefault := ! (args.DoCount || args.DoLog)
+if addStampByDefault {
+	if ! args.Stamp.IsZero() {
 			ls = ttio.AddStamp(args)
 
 			showLastTuple(ls, args)
@@ -72,11 +74,17 @@ func showLastTuple(stampLine string, args Arguments) {
 }
 
 func main() {
-	// fmt.Printf("%#v\n\n\n", runPar)
-	//fmt.Println("tt.main()")
 
-	args := parseArgs(os.Args[1:])
-	if err := parseAndRun(args); nil != err {
+	arguments := parseArgs(os.Args[1:])
+	err := act(arguments)
+
+	if nil != err {
 		stdErr.Print(err)
 	}
+}
+
+func dieHelp() {
+	_, _ = flags.ParseArgs(&Arguments{}, []string{"--help"})
+	additionalHelp()
+	os.Exit(0)
 }

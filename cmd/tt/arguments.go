@@ -13,8 +13,34 @@ import (
 	. "genja.org/ttrack/model"
 )
 
+func additionalHelp() {
+	fmt.Printf(`
+The flags also have shortcuts as indicated by the aliases in paranthesis.
+This means you can use «tt log» or «tt sum» instaed of «tt -l» and «tt -s».
 
-func guessArgs(argv []string, a *Arguments) []string {
+`)
+
+}
+
+func parseArgs(argv []string) Arguments {
+
+	args := Arguments{}
+	rest, err := flags.ParseArgs(&args, argv)
+	ferr, ok := err.(*flags.Error)
+	if ok && ferr.Type == flags.ErrHelp {
+		additionalHelp()
+		os.Exit(0)
+	} else
+	if err != nil {
+		fmt.Printf("Nope: %s\n", err)
+		os.Exit(1)
+	}
+
+	guessArgs(rest, &args)
+	return args
+}
+
+func guessArgs(argv []string, a *Arguments) {
 	var dateString string
 	var head string
 
@@ -25,7 +51,7 @@ func guessArgs(argv []string, a *Arguments) []string {
 		tail = tail[1:]
 
 		isStamp := !strings.Contains(head, "/") && (
-			strings.Contains(head, ":") || // regex [0-9]:[0-9]
+			strings.Contains(head, ":") || // should be regex [0-9]:[0-9]
 				strings.Contains(head, "now") ||
 				strings.Contains(head, "hour") ||
 				strings.Contains(head, "hours") ||
@@ -38,39 +64,39 @@ func guessArgs(argv []string, a *Arguments) []string {
 				strings.Contains(head, "year") ||
 				strings.Contains(head, "days") ||
 				strings.Contains(head, "day"))
-
 		if isStamp {
 			dateString = head
 			continue
 		}
 
-		if "count" == head || "c" == head {
+		switch head {
+		case "count":
+		case "c":
 			a.DoCount = true
-			continue
-		}
-
-		if "per-day" == head || "sum" == head || "count-per-pay" == head || "cc" == head {
+		case "sum":
+		case "cc":
 			a.DoCount = true
 			a.SumPerDay = true
-			continue
-		}
-
-		if head == "mark" {
+		case "mark":
 			a.DoMark = true
-			continue
-		}
-
-		if head == "log" {
+		case "log":
 			a.DoLog = true
-			continue
-		}
-
-		if head == "in" || head == "out" {
+		case "in":
+		case "out":
 			a.Mark = head
-			continue
+		case "help":
+			dieHelp()
+		default:
+			a.OutPath = head // check is file ?
 		}
 
-		a.OutPath = head
+		// if "count" == head || "c" == head { a.DoCount = true continue }
+		// if "sum" == head || "cc" == head { a.DoCount = true a.SumPerDay = true continue }
+		// if head == "help" { _, _ = flags.ParseArgs(&Arguments{}, []string{"--help"}) additionalHelp() os.Exit(0) }
+		// if head == "mark" { a.DoMark = true continue }
+		// if head == "log" { a.DoLog = true continue }
+		// if head == "in" || head == "out" { a.Mark = head continue }
+
 	}
 
 	if len(dateString) > 0 {
@@ -78,10 +104,14 @@ func guessArgs(argv []string, a *Arguments) []string {
 		a.Stamp = stamp
 	} else {
 		// the default action is to stamp in or out at the current time.
-		zero := a.Stamp
-		a.Stamp = time.Now()
-		if a.DoCount {
-			a.Stamp = zero
+		// zero := a.Stamp
+		// a.Stamp = time.Now()
+		// if a.DoCount {
+		// 	a.Stamp = zero
+		// }
+
+		if ! a.DoCount {
+			a.Stamp = time.Now()
 		}
 	}
 
@@ -89,27 +119,6 @@ func guessArgs(argv []string, a *Arguments) []string {
 		a.Stamp = time.Now() // count from current-month-file
 
 	}
-
-	return tail
-}
-
-func parseArgs(argv []string) Arguments {
-
-	aa := Arguments{}
-	rest, err := flags.ParseArgs(&aa, argv)
-
-	rest = guessArgs(rest, &aa)
-
-	if flagsErr, ok := err.(*flags.Error); ok && flagsErr.Type == flags.ErrHelp {
-		os.Exit(0)
-	}
-
-	if err != nil {
-		fmt.Printf("Nope: %s\n", err)
-		os.Exit(1)
-	}
-
-	return aa
 }
 
 
@@ -142,4 +151,3 @@ func parseGnuDate(inputDate string) (time.Time, error) {
 	glue.Debug("Failed to parse time: %s", inputDate)
 	return time.Time{}, err
 }
-

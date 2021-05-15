@@ -25,9 +25,9 @@ func TestCount(t *testing.T) {
 		DoCount: true,
 		OutPath: "/tmp/tt-should-be-empty", // resolved automatically if not specified
 	}
-	_ = parseAndRun(count)
-	_ = parseAndRun(count)
-	_ = parseAndRun(count)
+	_ = act(count)
+	_ = act(count)
+	_ = act(count)
 
 	s, err := os.Stat(count.OutPath)
 
