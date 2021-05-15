@@ -106,6 +106,7 @@ func ParseRecords(file *os.File) ([]Record, Tuples, error) {
 	return records, Tuples{Items: allTuples}, nil
 }
 
+// Open a file with records
 func Open(args Arguments) *os.File {
 	var out* os.File
 	if len(args.OutPath) > 0 {
@@ -115,6 +116,7 @@ func Open(args Arguments) *os.File {
 	}
 	return out
 }
+
 
 func createStorageFolder(ttdir string) (string, error) {
 	var home = os.Getenv("HOME")
@@ -141,7 +143,21 @@ func createStorageFolder(ttdir string) (string, error) {
 	return ttdir, nil
 }
 
+// write to an existing file. Ask to create a new file
 func OpenOutputFile(path string) (*os.File, error) {
+
+	if ! IsExists(path) {
+		yes := "no"
+		fmt.Printf("Really write to %s?\nyes/no: ", path)
+		rd := bufio.NewReader(os.Stdin)
+		input, _ := rd.ReadString('\n')
+		yes = strings.ToLower(strings.TrimRight(input, "\r\n"))
+		if ! (yes == "yes" || yes == "y") {
+			println("aborting.")
+			os.Exit(0)
+		}
+	}
+
 	var out, err =  os.OpenFile(path, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0755)
 	return out, err
 }
