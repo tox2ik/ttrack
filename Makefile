@@ -1,13 +1,11 @@
 .PHONY: tt
+.ONESHELL: tt
+PREFIX := ~
 
 all: tt install
-
-tt:
-	go build -ldflags="-s -w"
-
+tt:; cd cmd/tt; go build -ldflags="-s -w"
 install:
-	install -v ttrack ~/bin/tt
-	upx -qqq --lzma ~/bin/tt
-
-pack:
-	upx --brute ~/bin/tt
+	install -v cmd/tt/tt $(PREFIX)/bin/tt
+	upx -qqq --lzma $(PREFIX)/bin/tt || true
+testr:; richgo test ./...
+test:; go test ./...

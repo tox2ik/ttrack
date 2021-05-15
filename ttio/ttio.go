@@ -1,4 +1,4 @@
-package main
+package ttio
 
 import (
 	"bufio"
@@ -11,6 +11,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	. "genja.org/ttrack/glue"
+	. "genja.org/ttrack/model"
 )
 
 
@@ -40,7 +43,7 @@ func parseGnuDate(inputDate string) (time.Time, error) {
 	if nil == err {
 		return t, nil
 	}
-	debug("Failed to parse time: %s", inputDate)
+	Debug("Failed to parse time: %s", inputDate)
 	return time.Time{}, err
 }
 
@@ -59,7 +62,7 @@ func ParseRecords(file *os.File) ([]Record, Tuples, error) {
 			if u64, err := strconv.ParseUint(fields[3], 10, 32); err == nil {
 				ts = uint32(u64)
 			} else {
-				debug("Bad integer in line %s: %s. Error; %s", line, fields[3], err)
+				Debug("Bad integer in line %s: %s. Error; %s", line, fields[3], err)
 			}
 			rec := Record{
 				Mark:  strings.ToLower(strings.Replace(fields[0], ":", "", 1)),
@@ -74,31 +77,31 @@ func ParseRecords(file *os.File) ([]Record, Tuples, error) {
 	in := uint32(0)
 	var last Record
 	for i, rec := range records {
-		if rec.isIn() {
+		if rec.IsIn() {
 			last = rec
 			day = rec.Day
 			in = rec.Stamp
 		}
 
-		if rec.isOut() {
+		if rec.IsOut() {
 			if day != rec.Day {
 				// todo: should support over-midnight stamps
-				debug("warn: day mismatch for Record: %d (%s,%s)", i, day, rec.Day)
+				Debug("warn: day mismatch for Record: %d (%s,%s)", i, day, rec.Day)
 			}
 			allTuples = append(
 				allTuples,
 				Tuple{
 					Day: day,
 					Seconds: float32(rec.Stamp - in),
-					in: &last, // Unnecessary to keep reference here.
-					out: &rec, //  Should just set isValid if both present.
+					In: last, // Unnecessary to keep reference here.
+					Out: rec, //  Should just set isValid if both present.
 				})
 			day = ""
 		}
 	}
 
 	if len(records)%2 != 0 {
-		debug("file contains unfinished stamps")
+		Debug("file contains unfinished stamps")
 	}
 	return records, Tuples{Items: allTuples}, nil
 }
@@ -153,13 +156,6 @@ func OpenCurrentMonthOutputFile(t time.Time) (*os.File, error) {
 	return & os.File{}, err
 }
 
-func lastTuple(tc Tuples) Tuple {
-	length := len(tc.Items)
-	if length == 0 {
-		return Tuple{}
-	}
-	return tc.Items[length-1]
-}
 
 
 func AppendLog(args Arguments) {
@@ -167,16 +163,18 @@ func AppendLog(args Arguments) {
 	_, tuples, _ := ParseRecords(stampsFile)
 	logPath := path.Join( path.Dir(stampsFile.Name()), path.Base(stampsFile.Name()) + ".log")
 	logFile, _ := OpenOutputFile(logPath)
-	logFile.WriteString(strings.TrimSpace(FormatTuple(lastTuple(tuples))) + ": describe activity...\n")
+
+
+	logFile.WriteString(fmt.Sprintf("%s: describe activity...\n", tuples.Last().Format()))
 	logFile.Close()
 	logFile, _ = OpenOutputFile(logPath)
-	lines := FileAsArray(logFile)
+	lines := fileAsArray(logFile)
 	for i := 3; i >= 1; i-- {
 		if len(lines) >= i {
 			fmt.Println(lines[len(lines)-i])
 		}
 	}
-	stdErr.Println(logPath)
+	os.Stderr.WriteString(logPath)
 	cmd := exec.Command(os.Getenv("EDITOR"), logPath)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
@@ -186,21 +184,31 @@ func AppendLog(args Arguments) {
 
 }
 
+
+func fileAsArray(file *os.File) []string {
+	lines := make([]string, 0)
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		lines = append(lines, scanner.Text())
+	}
+	return lines
+}
+
 func AddStamp(args Arguments) string {
 	stampsFile := Open(args)
 	if args.DoDry {
-		die(fmt.Errorf("add dry not implemented"))
+		Die(fmt.Errorf("add dry not implemented"))
 	}
 	stampLine := writeStamp(stampsFile, args.Stamp, args.Mark)
 	stampsFile.Close()
-	stdErr.Printf("%s -> %s\n", stampLine, stampsFile.Name())
+	os.Stderr.WriteString(fmt.Sprintf("%s -> %s\n", stampLine, stampsFile.Name()))
 	return stampLine
 }
 
 func MarkSession(args Arguments) {
 	stampsFile := Open(args)
 	if args.DoDry {
-		die(fmt.Errorf("mark dry not implemented"))
+		Die(fmt.Errorf("mark dry not implemented"))
 	}
 	writeStamp(stampsFile, args.Stamp, "out")
 	writeStamp(stampsFile, args.Stamp, "in")
@@ -219,14 +227,14 @@ func writeStamp(out *os.File, stamp time.Time, mark string) string {
 		mark = determineNextStamp(lastMark)
 	} else if mark == "in" || mark == "out" {
 		err = enforceSequence(mark, out)
-		die(err)
+		Die(err)
 	} else {
 		panic(errors.New(fmt.Sprintf("Invalid Stamp-Mark %s", mark)))
 	}
 
 	stampLine := formatTime(stamp, mark)
 	_, err = out.WriteString(stampLine+"\n")
-	die(err)
+	Die(err)
 	out.Sync()
 	return stampLine
 }
@@ -289,7 +297,7 @@ func identifyLastStamp(path string) string {
 	var lastLn int
 	if len(path) > 0 {
 		out, err = os.Open(path)
-		die(err)
+		Die(err)
 	}
 	stat, _ := os.Stat(path)
 	o := make([]byte, stat.Size())

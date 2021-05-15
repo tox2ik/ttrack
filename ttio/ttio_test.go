@@ -1,4 +1,4 @@
-package main
+package ttio
 
 import (
 	"os"
@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+
+	"genja.org/ttrack/glue"
 )
 
 var out *os.File
@@ -29,7 +31,7 @@ func TestFirstStamp(t *testing.T) {
 }
 
 func TestSecondStamp(t *testing.T) {
-	sFile := TtStampFileX()
+	sFile := glue.TestStampFile()
 	out, _ = OpenOutputFile(sFile)
 	writeStamp(out, time.Now(), "")
 	writeStamp(out, time.Now(), "")
@@ -40,7 +42,7 @@ func TestSecondStamp(t *testing.T) {
 
 func TestOutOfSequenceA(t *testing.T) {
 	defer expectPanic(t)
-	out, _ = OpenOutputFile(TtStampFileX())
+	out, _ = OpenOutputFile(glue.TestStampFile())
 	writeStamp(out, time.Now(), "in")
 	writeStamp(out, time.Now(), "in")
 }
@@ -54,14 +56,14 @@ func TestOutOfSequenceB(t *testing.T) {
 
 func TestInvalidMark(t *testing.T) {
 	defer expectPanic(t)
-	out, _ = OpenOutputFile(TtStampFileX())
+	out, _ = OpenOutputFile(glue.TestStampFile())
 	writeStamp(out, time.Now(), "typo")
 }
 
 
 func TestSupportUtasOut(t *testing.T) {
-	wipeTestFile()
-	out, _ = OpenOutputFile(TtStampFileX())
+	glue.WipeTestFiles()
+	out, _ = OpenOutputFile(glue.TestStampFile())
 	writeStamp(out, time.Now(), "inn")
 	s := writeStamp(out, time.Now(), "ut")
 	if ! strings.Contains(s, "out") {
@@ -70,7 +72,7 @@ func TestSupportUtasOut(t *testing.T) {
 }
 
 func TestHalfHour(t *testing.T) {
-	sFile := TtStampFileX()
+	sFile := glue.TestStampFile()
 	out, _ = OpenOutputFile(sFile)
 
 	twelve := time.Date(2020, 5, 5, 12, 0, 0, 0, time.UTC)

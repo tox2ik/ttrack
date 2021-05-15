@@ -6,37 +6,18 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"genja.org/ttrack/glue"
+	. "genja.org/ttrack/model"
 )
 
-const TtStampsFile =  "/tmp/tt-stamps-test"
-
-var tfn = 0
-
-// parallel tests need individual output files
-func TtStampFileX() string {
-	tfn++
-	f := fmt.Sprintf("%s.%d", TtStampsFile, tfn)
-	_ = os.Remove(f)
-	return f
-
-}
-
-func wipeTestFile(ff... string) {
-	_ = os.Remove(TtStampsFile)
-	for _, f := range ff {
-		if f != "" {
-			_ = os.Remove(f)
-		}
-	}
-}
 
 func TestMain(m *testing.M) {
-	wipeTestFile()
+	glue.WipeTestFiles()
 	code := m.Run()
-	wipeTestFile()
+	glue.WipeTestFiles()
 	os.Exit(code)
 }
-
 
 func TestCount(t *testing.T) {
 	_ = os.Remove("/tmp/tt-should-be-empty")

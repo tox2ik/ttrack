@@ -2,33 +2,17 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
+	"os/exec"
 	"strings"
 	"time"
 
 	"github.com/jessevdk/go-flags"
+
+	"genja.org/ttrack/glue"
+	. "genja.org/ttrack/model"
 )
 
-var stdErr = log.New(os.Stderr, "", 0)
-
-func die(e error) {
-	if e != nil {
-		panic(e)
-	}
-}
-
-type Arguments struct {
-	DoCount   bool `short:"c" long:"count" description:"Count stamps"`
-	DoLog     bool `short:"l" long:"log" description:"Describe last time stamp"`
-	DoMark    bool `short:"m" long:"mark" description:"Sign out and back in"`
-	DoDry     bool `short:"n" long:"dry" description:"Dry run"`
-	SumPerDay bool `short:"s" long:"sum" description:"Count average per day"`
-
-	Stamp   time.Time `short:"d" long:"date" description:"Time to record"`
-	OutPath string
-	Mark    string `short:"r" long:"record" description:"Sign in or out" choice:"in" choice:"out"`
-}
 
 func guessArgs(argv []string, a *Arguments) []string {
 	var dateString string
@@ -112,7 +96,7 @@ func guessArgs(argv []string, a *Arguments) []string {
 func parseArgs(argv []string) Arguments {
 
 	aa := Arguments{}
-	rest, err := flags.ParseArgs(&aa, os.Args[1:])
+	rest, err := flags.ParseArgs(&aa, argv)
 
 	rest = guessArgs(rest, &aa)
 
@@ -129,54 +113,33 @@ func parseArgs(argv []string) Arguments {
 }
 
 
-func parseAndRun(runPar Arguments) error {
+func parseGnuDate(inputDate string) (time.Time, error) {
+	var t time.Time
 	var err error
-	if runPar.SumPerDay {
-		runPar.DoCount = true
-		err = CountPerDay(Open(runPar))
-	} else if runPar.DoCount {
-		err = Count(Open(runPar))
+	var out []byte
+	formats := [...] string{
+		"2018-01-20 04:35:11",
+		"12:59:59",
 	}
-
-	if runPar.DoLog {
-		AppendLog(runPar)
-	}
-
-	if runPar.DoMark {
-		MarkSession(runPar)
-	}
-
-	ls := ""
-
-
-	if ! (runPar.DoCount || runPar.DoLog) {
-		if ! runPar.Stamp.IsZero() {
-			ls = AddStamp(runPar)
-
-			showLastTuple(ls, runPar)
+	for _, e := range formats {
+		t, err = time.Parse(e, inputDate)
+		if err == nil {
+			break
 		}
 	}
-	return err
-
-}
-
-func showLastTuple(stampLine string, args Arguments) {
-	if strings.Contains(stampLine, "out:") {
-		stampsFile := Open(args)
-		_, tuples, _ := ParseRecords(stampsFile)
-		stampsFile.Close()
-		t := lastTuple(tuples)
-		fmt.Printf("%s  %5.2f\n", t.Day, t.Seconds/3600)
+	if err != nil {
+		// maybe-todo: handle schmuck-os date and winders.
+		// The semantics of GNU `date -d` are very useful.
+		// For more info read `info date`; section 29.7 Relative Items in date strings
+		// https://www.gnu.org/software/coreutils/manual/html_node/Relative-items-in-date-strings.html#Relative-items-in-date-strings
+		// The intro-quote of section 29 Date input formats is also worth a read.
+		out, err = exec.Command("date", "--rfc-email", "-d", inputDate).Output()
+		t, err = time.Parse(time.RFC1123Z, strings.Trim(string(out), "\n"))
 	}
-
-}
-
-func main() {
-	// fmt.Printf("%#v\n\n\n", runPar)
-	//fmt.Println("tt.main()")
-
-	args := parseArgs(os.Args[1:])
-	if err := parseAndRun(args); nil != err {
-		stdErr.Print(err)
+	if nil == err {
+		return t, nil
 	}
+	glue.Debug("Failed to parse time: %s", inputDate)
+	return time.Time{}, err
 }
+
