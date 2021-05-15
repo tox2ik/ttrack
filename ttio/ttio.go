@@ -17,35 +17,6 @@ import (
 )
 
 
-func parseGnuDate(inputDate string) (time.Time, error) {
-	var t time.Time
-	var err error
-	var out []byte
-	formats := [...] string{
-		"2018-01-20 04:35:11",
-		"12:59:59",
-	}
-	for _, e := range formats {
-		t, err = time.Parse(e, inputDate)
-		if err == nil {
-			break
-		}
-	}
-	if err != nil {
-		// maybe-todo: handle schmuck-os date and winders.
-		// The semantics of GNU `date -d` are most useful and you should consider installing GNU coreutils.
-		// For more info read `info date`; section 29.7 Relative Items in date strings
-		// https://www.gnu.org/software/coreutils/manual/html_node/Relative-items-in-date-strings.html#Relative-items-in-date-strings
-		// The intro-quote of section 29 Date input formats is also worth a read.
-		out, err = exec.Command("date", "--rfc-email", "-d", inputDate).Output()
-		t, err = time.Parse(time.RFC1123Z, strings.Trim(string(out), "\n"))
-	}
-	if nil == err {
-		return t, nil
-	}
-	Debug("Failed to parse time: %s", inputDate)
-	return time.Time{}, err
-}
 
 
 func ParseRecords(file *os.File) ([]Record, Tuples, error) {
@@ -146,17 +117,20 @@ func createStorageFolder(ttdir string) (string, error) {
 // write to an existing file. Ask to create a new file
 func OpenOutputFile(path string) (*os.File, error) {
 
-	if ! IsExists(path) {
-		yes := "no"
-		fmt.Printf("Really write to %s?\nyes/no: ", path)
-		rd := bufio.NewReader(os.Stdin)
-		input, _ := rd.ReadString('\n')
-		yes = strings.ToLower(strings.TrimRight(input, "\r\n"))
-		if ! (yes == "yes" || yes == "y") {
-			println("aborting.")
-			os.Exit(0)
+	if os.Getenv("tt_yes") == "" {
+		if ! IsExists(path) {
+			yes := "no"
+			fmt.Printf("Really write to %s?\nyes/no: ", path)
+			rd := bufio.NewReader(os.Stdin)
+			input, _ := rd.ReadString('\n')
+			yes = strings.ToLower(strings.TrimRight(input, "\r\n"))
+			if ! (yes == "yes" || yes == "y") {
+				println("aborting.")
+				os.Exit(0)
+			}
 		}
 	}
+
 
 	var out, err =  os.OpenFile(path, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0755)
 	return out, err

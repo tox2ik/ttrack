@@ -9,7 +9,6 @@ import (
 
 	"github.com/jessevdk/go-flags"
 
-	"genja.org/ttrack/glue"
 	. "genja.org/ttrack/model"
 )
 
@@ -22,7 +21,7 @@ This means you can use «tt log» or «tt sum» instaed of «tt -l» and «tt -s
 
 }
 
-func parseArgs(argv []string) Arguments {
+func ParseArgs(argv []string) Arguments {
 
 	args := Arguments{}
 	rest, err := flags.ParseArgs(&args, argv)
@@ -90,18 +89,14 @@ func guessArgs(argv []string, a *Arguments) {
 			a.OutPath = head // check is file ?
 		}
 
-		// if "count" == head || "c" == head { a.DoCount = true continue }
-		// if "sum" == head || "cc" == head { a.DoCount = true a.SumPerDay = true continue }
-		// if head == "help" { _, _ = flags.ParseArgs(&Arguments{}, []string{"--help"}) additionalHelp() os.Exit(0) }
-		// if head == "mark" { a.DoMark = true continue }
-		// if head == "log" { a.DoLog = true continue }
-		// if head == "in" || head == "out" { a.Mark = head continue }
-
 	}
 
 	if len(dateString) > 0 {
-		stamp, _ := parseGnuDate(dateString)
+		stamp, _ := ParseDate(dateString)
 		a.Stamp = stamp
+	} else if len(a.InStamp) > 0 {
+		stmp, _ := ParseDate(a.InStamp)
+		a.Stamp = stmp
 	} else {
 		// the default action is to stamp in or out at the current time.
 		// zero := a.Stamp
@@ -121,33 +116,76 @@ func guessArgs(argv []string, a *Arguments) {
 	}
 }
 
+func ParseDate(in string) (time.Time, error) {
+	if t, e := parseGo(in); e == nil {
+		return t, nil
+	}
+	if t, e := parseGnuDate(in); e == nil {
+		return t, nil
+	}
+	return time.Time{}, fmt.Errorf("failed to parse time: %s", in)
+}
+
+func parseGo(inputDate string) (time.Time, error) {
+	var t time.Time
+	var err error
+	// ref-time: Mon Jan 2 15:04:05 -0700 MST 2006
+	layFull1 := "2006-01-02 15:04"
+	layFull2 := "2006-01-02 15:04:05"
+	layShort1 := "15:04:05"
+	layShort2 := "15:04"
+	// short
+	t, err = time.Parse(layShort2, inputDate)
+	if err == nil {
+		return todayTime(t), nil
+	}
+	t, err = time.Parse(layShort1, inputDate)
+	if err == nil {
+		return todayTime(t), nil
+	}
+	// full
+	t, err = time.Parse(layFull2, inputDate)
+	if err == nil {
+		return t, nil
+	}
+	t, err = time.Parse(layFull1, inputDate)
+	if err == nil {
+		return t, nil
+	}
+	return t, fmt.Errorf("unable to parse date")
+}
+
+func todayTime (hms time.Time) time.Time {
+	___ymd := time.Now()
+	return time.Date(
+		___ymd.Year(),
+		___ymd.Month(),
+		___ymd.Day(),
+		hms.Hour(),
+		hms.Minute(),
+		hms.Second(),
+		0,
+		hms.Location())
+}
 
 func parseGnuDate(inputDate string) (time.Time, error) {
 	var t time.Time
 	var err error
 	var out []byte
-	formats := [...] string{
-		"2018-01-20 04:35:11",
-		"12:59:59",
-	}
-	for _, e := range formats {
-		t, err = time.Parse(e, inputDate)
-		if err == nil {
-			break
-		}
-	}
-	if err != nil {
-		// maybe-todo: handle schmuck-os date and winders.
-		// The semantics of GNU `date -d` are very useful.
-		// For more info read `info date`; section 29.7 Relative Items in date strings
-		// https://www.gnu.org/software/coreutils/manual/html_node/Relative-items-in-date-strings.html#Relative-items-in-date-strings
-		// The intro-quote of section 29 Date input formats is also worth a read.
-		out, err = exec.Command("date", "--rfc-email", "-d", inputDate).Output()
-		t, err = time.Parse(time.RFC1123Z, strings.Trim(string(out), "\n"))
-	}
+
+	comment := `
+maybe-todo: handle schmuck-os date and winders.
+The semantics of GNU 'date -d' are very useful.
+For more info read 'info date'; section 29.7 Relative Items in date strings
+https://www.gnu.org/software/coreutils/manual/html_node/Relative-items-in-date-strings.html#Relative-items-in-date-strings
+The intro-quote of section 29 Date input formats is also worth a read.
+`
+	comment += ""
+
+	out, err = exec.Command("date", "--rfc-email", "-d", inputDate).Output()
+	t, err = time.Parse(time.RFC1123Z, strings.Trim(string(out), "\n"))
 	if nil == err {
 		return t, nil
 	}
-	glue.Debug("Failed to parse time: %s", inputDate)
 	return time.Time{}, err
 }
