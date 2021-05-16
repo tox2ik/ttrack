@@ -5,8 +5,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/jessevdk/go-flags"
-
 	"genja.org/ttrack/glue"
 	. "genja.org/ttrack/model"
 	"genja.org/ttrack/ttio"
@@ -56,8 +54,3 @@ func act(args Arguments) (err error) {
 
 }
 
-func dieHelp() {
-	_, _ = flags.ParseArgs(&Arguments{}, []string{"--help"})
-	additionalHelp()
-	os.Exit(0)
-}

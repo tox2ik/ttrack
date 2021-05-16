@@ -125,7 +125,7 @@ func OpenOutputFile(path string) (*os.File, error) {
 			input, _ := rd.ReadString('\n')
 			yes = strings.ToLower(strings.TrimRight(input, "\r\n"))
 			if ! (yes == "yes" || yes == "y") {
-				println("aborting.")
+				println("aborting. (set tt_yes=1 to skip this question)")
 				os.Exit(0)
 			}
 		}
