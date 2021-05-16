@@ -12,14 +12,6 @@ import (
 	. "genja.org/ttrack/model"
 )
 
-func additionalHelp() {
-	fmt.Printf(`
-The flags also have shortcuts as indicated by the aliases in paranthesis.
-This means you can use «tt log» or «tt sum» instaed of «tt -l» and «tt -s».
-
-`)
-
-}
 
 func ParseArgs(argv []string) Arguments {
 
@@ -35,68 +27,39 @@ func ParseArgs(argv []string) Arguments {
 		os.Exit(1)
 	}
 
-	guessArgs(rest, &args)
+	interpArgs(rest, &args)
 	return args
 }
 
-func guessArgs(argv []string, a *Arguments) {
-	var dateString string
-	var head string
-
+func interpArgs(argv []string, arg *Arguments) {
+	date :=  ""
 	tail := argv
-
 	for len(tail) > 0 {
-		head = strings.ToLower(tail[0])
+		head := strings.ToLower(tail[0])
 		tail = tail[1:]
 
-		isStamp := !strings.Contains(head, "/") && (
-			strings.Contains(head, ":") || // should be regex [0-9]:[0-9]
-				strings.Contains(head, "now") ||
-				strings.Contains(head, "hour") ||
-				strings.Contains(head, "hours") ||
-				strings.Contains(head, "second") ||
-				strings.Contains(head, "seconds") ||
-				strings.Contains(head, "tomorrow") ||
-				strings.Contains(head, "yesterday") ||
-				strings.Contains(head, "minute") ||
-				strings.Contains(head, "years") ||
-				strings.Contains(head, "year") ||
-				strings.Contains(head, "days") ||
-				strings.Contains(head, "day"))
-		if isStamp {
-			dateString = head
+		if arg.IsStamp(head) {
+			date = head
 			continue
 		}
 
 		switch head {
-		case "count":
-		case "c":
-			a.DoCount = true
-		case "sum":
-		case "cc":
-			a.DoCount = true
-			a.SumPerDay = true
-		case "mark":
-			a.DoMark = true
-		case "log":
-			a.DoLog = true
-		case "in":
-		case "out":
-			a.Mark = head
 		case "help":
 			dieHelp()
 		default:
-			a.OutPath = head // check is file ?
+			if ! arg.SetFlagFromAlias(head) {
+				arg.OutPath = head
+			}
 		}
 
 	}
 
-	if len(dateString) > 0 {
-		stamp, _ := ParseDate(dateString)
-		a.Stamp = stamp
-	} else if len(a.InStamp) > 0 {
-		stmp, _ := ParseDate(a.InStamp)
-		a.Stamp = stmp
+	if len(date) > 0 {
+		argStamp, _ := ParseDate(date)
+		arg.Stamp = argStamp
+	} else if len(arg.InStamp) > 0 {
+		dStamp, _ := ParseDate(arg.InStamp)
+		arg.Stamp = dStamp
 	} else {
 		// the default action is to stamp in or out at the current time.
 		// zero := a.Stamp
@@ -104,19 +67,20 @@ func guessArgs(argv []string, a *Arguments) {
 		// if a.DoCount {
 		// 	a.Stamp = zero
 		// }
-
-		if ! a.DoCount {
-			a.Stamp = time.Now()
+		if ! arg.DoCount {
+			arg.Stamp = time.Now()
 		}
 	}
 
-	if a.DoCount && len(a.OutPath) == 0 {
-		a.Stamp = time.Now() // count from current-month-file
-
+	if arg.DoCountCurrentMonth() {
+		arg.Stamp = time.Now() // count from current-month-file
 	}
 }
 
 func ParseDate(in string) (time.Time, error) {
+	if strings.Contains(in, "today") {
+		println(in)
+	}
 	if t, e := parseGo(in); e == nil {
 		return t, nil
 	}
@@ -127,40 +91,49 @@ func ParseDate(in string) (time.Time, error) {
 }
 
 func parseGo(inputDate string) (time.Time, error) {
-	var t time.Time
-	var err error
 	// ref-time: Mon Jan 2 15:04:05 -0700 MST 2006
-	layFull1 := "2006-01-02 15:04"
-	layFull2 := "2006-01-02 15:04:05"
-	layShort1 := "15:04:05"
-	layShort2 := "15:04"
-	// short
-	t, err = time.Parse(layShort2, inputDate)
-	if err == nil {
-		return todayTime(t), nil
+	layoFull := []string{
+		"2006-01-02 15:04",
+		"2006-01-02 15:04:05",
 	}
-	t, err = time.Parse(layShort1, inputDate)
-	if err == nil {
-		return todayTime(t), nil
+	layoShort := []string{
+		"15:04:05",
+		"15:04",
+		"today 15:04",
+		"today 15:04:05",
+		"yest 15:04",
+		"yest 15:04:05",
+		"yesterday 15:04",
+		"yesterday 15:04:05",
 	}
-	// full
-	t, err = time.Parse(layFull2, inputDate)
-	if err == nil {
-		return t, nil
+	for _, s := range layoShort {
+		t, err := time.Parse(s, inputDate)
+		if nil == err {
+			if strings.Contains(inputDate, "today") {
+				return todayTime(t, 0), nil
+			} else
+			if strings.Contains(inputDate, "yest") {
+				return todayTime(t, -1), nil
+			} else {
+				return todayTime(t, 0), nil
+			}
+		}
 	}
-	t, err = time.Parse(layFull1, inputDate)
-	if err == nil {
-		return t, nil
+	for _, s := range layoFull {
+		t, err := time.Parse(s, inputDate)
+		if nil == err {
+			return t, nil
+		}
 	}
-	return t, fmt.Errorf("unable to parse date")
+	return time.Time{}, fmt.Errorf("unable to parse date")
 }
 
-func todayTime (hms time.Time) time.Time {
+func todayTime(hms time.Time, dayOffset int) time.Time {
 	___ymd := time.Now()
 	return time.Date(
 		___ymd.Year(),
 		___ymd.Month(),
-		___ymd.Day(),
+		___ymd.Day() + dayOffset,
 		hms.Hour(),
 		hms.Minute(),
 		hms.Second(),
@@ -183,9 +156,28 @@ The intro-quote of section 29 Date input formats is also worth a read.
 	comment += ""
 
 	out, err = exec.Command("date", "--rfc-email", "-d", inputDate).Output()
-	t, err = time.Parse(time.RFC1123Z, strings.Trim(string(out), "\n"))
+	t, err = time.Parse(time.RFC1123Z, strings.Trim(string(out), "\r\n"))
 	if nil == err {
 		return t, nil
 	}
 	return time.Time{}, err
+}
+
+
+func dieHelp() {
+	_, _ = flags.ParseArgs(&Arguments{}, []string{"--help"})
+	additionalHelp()
+	os.Exit(0)
+}
+
+func additionalHelp() {
+	fmt.Printf(`
+The flags also have shortcuts as indicated by the aliases in paranthesis.
+This means you can use 'tt log' or 'tt sum' instaed of 'tt -l' and 'tt -s'.
+
+cover:
+- today
+- yest|yesterday
+- gnu-date
+`)
 }
