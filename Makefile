@@ -4,7 +4,8 @@ PREFIX := ~
 
 TRUN := go test
 
-all: tt install
+
+all: tt install ; echo 'alias tti="make && tt i"'
 tt:; cd cmd/tt; go build -ldflags="-s -w"
 install:
 	install -v cmd/tt/tt $(PREFIX)/bin/tt

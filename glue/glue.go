@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 )
 
 func Debug(fmt string, arg ...interface{}) {
@@ -47,4 +48,12 @@ func IsExists(path string) bool {
 	}
 
 	return false
+}
+
+func RunEditor(path string) error {
+	cmd := exec.Command(os.Getenv("EDITOR"), path)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
 }

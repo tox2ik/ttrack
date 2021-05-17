@@ -12,7 +12,6 @@ import (
 	. "genja.org/ttrack/model"
 )
 
-
 func ParseArgs(argv []string) Arguments {
 
 	args := Arguments{}
@@ -32,7 +31,7 @@ func ParseArgs(argv []string) Arguments {
 }
 
 func interpArgs(argv []string, arg *Arguments) {
-	date :=  ""
+	date := ""
 	tail := argv
 	for len(tail) > 0 {
 		head := strings.ToLower(tail[0])
@@ -44,7 +43,7 @@ func interpArgs(argv []string, arg *Arguments) {
 		}
 
 		switch head {
-		case "help":
+		case "h", "help":
 			dieHelp()
 		default:
 			if ! arg.SetFlagFromAlias(head) {
@@ -133,7 +132,7 @@ func todayTime(hms time.Time, dayOffset int) time.Time {
 	return time.Date(
 		___ymd.Year(),
 		___ymd.Month(),
-		___ymd.Day() + dayOffset,
+		___ymd.Day()+dayOffset,
 		hms.Hour(),
 		hms.Minute(),
 		hms.Second(),
@@ -162,7 +161,6 @@ The intro-quote of section 29 Date input formats is also worth a read.
 	}
 	return time.Time{}, err
 }
-
 
 func dieHelp() {
 	_, _ = flags.ParseArgs(&Arguments{}, []string{"--help"})

@@ -2,9 +2,11 @@ package ttio
 
 import (
 	"bufio"
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
@@ -16,32 +18,22 @@ import (
 	. "genja.org/ttrack/model"
 )
 
+func ParseRecords(args Arguments, ew io.Writer) ([]Record, Tuples, error) {
+	return ParseRecordsFile(Open(args), ew)
+}
 
-
-
-func ParseRecords(file *os.File) ([]Record, Tuples, error) {
+func ParseRecordsFile(file *os.File, ew io.Writer) ([]Record, Tuples, error) {
 	if _, err := file.Seek(0, io.SeekStart); err != nil {
 		return nil, Tuples{Items: make([]Tuple, 0)}, err
 	}
 	scanner := bufio.NewScanner(file)
 	records := make([]Record, 0)
 	for scanner.Scan() {
-		line := strings.Trim(strings.ReplaceAll(scanner.Text(), "  ", " "), " ")
-		fields := strings.Split(line, " ")
-		if len(fields) >= 4 {
-			ts := uint32(0)
-			if u64, err := strconv.ParseUint(fields[3], 10, 32); err == nil {
-				ts = uint32(u64)
-			} else {
-				Debug("Bad integer in line %s: %s. Error; %s", line, fields[3], err)
-			}
-			rec := Record{
-				Mark:  strings.ToLower(strings.Replace(fields[0], ":", "", 1)),
-				Day:   fields[1],
-				Time:  fields[2],
-				Stamp: ts}
+		rec := ParseRecord(scanner.Text())
+		if rec.IsValid() {
 			records = append(records, rec)
 		}
+
 	}
 	day := "1970-01-01"
 	allTuples := make([]Tuple, 0)
@@ -57,29 +49,56 @@ func ParseRecords(file *os.File) ([]Record, Tuples, error) {
 		if rec.IsOut() {
 			if day != rec.Day {
 				// todo: should support over-midnight stamps
-				Debug("warn: day mismatch for Record: %d (%s,%s)", i, day, rec.Day)
+				fmt.Fprintf(ew, "warn: day mismatch for Record: %d (%s,%s)\n", i, day, rec.Day)
 			}
-			allTuples = append(
-				allTuples,
-				Tuple{
-					Day: day,
-					Seconds: float32(rec.Stamp - in),
-					In: last, // Unnecessary to keep reference here.
-					Out: rec, //  Should just set isValid if both present.
-				})
+			allTuples = append(allTuples, Tuple{
+				Day:     day,
+				Seconds: rec.Stamp - in,
+				In:      last, // Unnecessary to keep reference here.
+				Out:     rec,  // Should just set isValid if both present.
+			})
 			day = ""
 		}
 	}
 
 	if len(records)%2 != 0 {
-		Debug("file contains unfinished stamps")
+		fmt.Fprintf(ew, "file contains unfinished stamps")
+		lastRec := records[len(records)-1]
+		if lastRec.IsValid() && lastRec.IsIn() {
+			lastTup := Tuple{
+				In:      lastRec,
+				Out:     Record{Mark: "out", Day: lastRec.Day, Time: " ... "},
+				Seconds: uint32(time.Now().Unix()) - lastRec.Stamp,
+				Day:     lastRec.Day }
+			allTuples = append(allTuples, lastTup)
+		}
 	}
 	return records, Tuples{Items: allTuples}, nil
 }
 
+func ParseRecord(line string) Record {
+	line = strings.ReplaceAll(line, "  ", " ")
+	line = strings.Trim(line, " ")
+	fields := strings.Split(line, " ")
+	if len(fields) >= 4 {
+		ts := uint32(0)
+		if u64, err := strconv.ParseUint(fields[3], 10, 32); err == nil {
+			ts = uint32(u64)
+		} else {
+			Debug("Bad integer in line %s: %s. Error; %s", line, fields[3], err)
+		}
+		return Record{
+			Mark:  strings.ToLower(strings.Replace(fields[0], ":", "", 1)),
+			Day:   fields[1],
+			Time:  fields[2],
+			Stamp: ts}
+	}
+	return Record{}
+}
+
 // Open a file with records
 func Open(args Arguments) *os.File {
-	var out* os.File
+	var out *os.File
 	if len(args.OutPath) > 0 {
 		out, _ = OpenOutputFile(args.OutPath)
 	} else {
@@ -87,7 +106,6 @@ func Open(args Arguments) *os.File {
 	}
 	return out
 }
-
 
 func createStorageFolder(ttdir string) (string, error) {
 	var home = os.Getenv("HOME")
@@ -98,7 +116,7 @@ func createStorageFolder(ttdir string) (string, error) {
 			ttdir = direnv
 		} else if len(home) > 0 {
 			ttdir = fmt.Sprintf("%s/ttrack", home)
-		} else if len(ttdir) + len(home) == 0 {
+		} else if len(ttdir)+len(home) == 0 {
 			ttdir = "/tmp/ttrack"
 		}
 	}
@@ -131,8 +149,7 @@ func OpenOutputFile(path string) (*os.File, error) {
 		}
 	}
 
-
-	var out, err =  os.OpenFile(path, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0755)
+	var out, err = os.OpenFile(path, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0755)
 	return out, err
 }
 
@@ -140,40 +157,32 @@ func OpenCurrentMonthOutputFile(t time.Time) (*os.File, error) {
 	storageFolder, err := createStorageFolder("")
 	if len(storageFolder) > 0 {
 		monthPath := fmt.Sprintf("%s/%s", storageFolder, strings.ToLower(t.Format("Jan")))
-		var out, err =  os.OpenFile(monthPath, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0755)
+		var out, err = os.OpenFile(monthPath, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0755)
 		return out, err
 	}
-	return & os.File{}, err
+	return &os.File{}, err
 }
 
+func AppendLog(args Arguments, ew io.Writer) {
+	_, tuples, _ := ParseRecords(args, ew)
 
+	records := Open(args)
+	logPath := path.Join(path.Dir(records.Name()), path.Base(records.Name())) + ".log"
 
-func AppendLog(args Arguments) {
-	stampsFile := Open(args)
-	_, tuples, _ := ParseRecords(stampsFile)
-	logPath := path.Join( path.Dir(stampsFile.Name()), path.Base(stampsFile.Name()) + ".log")
 	logFile, _ := OpenOutputFile(logPath)
-
-
-	logFile.WriteString(fmt.Sprintf("%s: describe activity...\n", tuples.Last().Format()))
-	logFile.Close()
-	logFile, _ = OpenOutputFile(logPath)
+	logFile.WriteString(fmt.Sprintf("%s: describe activity...\n", tuples.Last().FormatDur()))
 	lines := fileAsArray(logFile)
 	for i := 3; i >= 1; i-- {
 		if len(lines) >= i {
 			fmt.Println(lines[len(lines)-i])
 		}
 	}
-	os.Stderr.WriteString(logPath)
-	cmd := exec.Command(os.Getenv("EDITOR"), logPath)
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.Run()
-	exec.Command("reset")
+
+	fmt.Fprintf(ew, "%s\n", logPath)
+	_ = RunEditor(logPath)
+	_ = exec.Command("reset").Run()
 
 }
-
 
 func fileAsArray(file *os.File) []string {
 	lines := make([]string, 0)
@@ -184,18 +193,19 @@ func fileAsArray(file *os.File) []string {
 	return lines
 }
 
-func AddStamp(args Arguments) string {
+func AddStamp(args Arguments, w io.Writer) string {
 	stampsFile := Open(args)
 	if args.DoDry {
 		Die(fmt.Errorf("add dry not implemented"))
 	}
 	stampLine := writeStamp(stampsFile, args.Stamp, args.Mark)
 	stampsFile.Close()
-	os.Stderr.WriteString(fmt.Sprintf("%s -> %s\n", stampLine, stampsFile.Name()))
+	fmt.Fprintf(w, "%s -> %s\n", stampLine, stampsFile.Name())
 	return stampLine
 }
 
-func MarkSession(args Arguments) {
+
+func MarkSession(args Arguments, ew io.Writer) {
 	stampsFile := Open(args)
 	if args.DoDry {
 		Die(fmt.Errorf("mark dry not implemented"))
@@ -204,12 +214,12 @@ func MarkSession(args Arguments) {
 	writeStamp(stampsFile, args.Stamp, "in")
 	stampsFile.Close()
 	if args.DoLog {
-		AppendLog(args)
+		AppendLog(args, ew)
 	}
 }
 
 func writeStamp(out *os.File, stamp time.Time, mark string) string {
-	//fmt.Printf("writeStamp(%s, %s, %s)\n", out.Name(), stamp.Format(time.RFC3339), mark)
+	// fmt.Printf("writeStamp(%s, %s, %s)\n", out.Name(), stamp.Format(time.RFC3339), mark)
 	var err error
 	mark = normalizeMark(mark)
 	if len(mark) == 0 {
@@ -223,19 +233,97 @@ func writeStamp(out *os.File, stamp time.Time, mark string) string {
 	}
 
 	stampLine := formatTime(stamp, mark)
-	_, err = out.WriteString(stampLine+"\n")
+	_, err = out.WriteString(stampLine + "\n")
 	Die(err)
 	out.Sync()
 	return stampLine
 }
 
+func RemoveFileRecord(args Arguments, rm Record) {
+	stampsFile := Open(args)
+	scanner := bufio.NewScanner(stampsFile)
+	j := -1
+	i := 0
+	for scanner.Scan() {
+		txt := scanner.Text()
+		rec := ParseRecord(txt)
+		i++
+		if rec.IsValid() && rec.Equals(rm) {
+			j = i
+		}
+	}
+	stampsFile.Close()
+	if j >= 0 {
+		err := removeLines(stampsFile.Name(), j, 1)
+		Die(err)
+
+	}
+}
+
+func removeLines(fn string, start, n int) (err error) {
+	skipLines := func(b []byte, n int) ([]byte, bool) {
+		for ; n > 0; n-- {
+			if len(b) == 0 {
+				return nil, false
+			}
+			x := bytes.IndexByte(b, '\n')
+			if x < 0 {
+				x = len(b)
+			} else {
+				x++
+			}
+			b = b[x:]
+		}
+		return b, true
+	}
+	if start < 1 {
+		return errors.New("invalid request.  line numbers start at 1.")
+	}
+	if n < 0 {
+		return errors.New("invalid request.  negative number to remove.")
+	}
+	var f *os.File
+	if f, err = os.OpenFile(fn, os.O_RDWR, 0); err != nil {
+		return
+	}
+	defer func() {
+		if cErr := f.Close(); err == nil {
+			err = cErr
+		}
+	}()
+	var b []byte
+	if b, err = ioutil.ReadAll(f); err != nil {
+		return
+	}
+	cut, ok := skipLines(b, start-1)
+	if !ok {
+		return fmt.Errorf("less than %d lines", start)
+	}
+	if n == 0 {
+		return nil
+	}
+	tail, ok := skipLines(cut, n)
+	if !ok {
+		return fmt.Errorf("less than %d lines after line %d", n, start)
+	}
+	t := int64(len(b) - len(cut))
+	if err = f.Truncate(t); err != nil {
+		return
+	}
+	if len(tail) > 0 {
+		_, err = f.WriteAt(tail, t)
+	}
+	return
+}
 
 // in : 2007-03-04 12:20:00 1173010800
 // out: 2007-03-04 12:20:00 1173010800
 func formatTime(t time.Time, mark string) string {
-	if mark == "" { mark = "in" }
+	if mark == "" {
+		mark = "in"
+	}
 	return fmt.Sprintf("%-4s %d-%02d-%02d %02d:%02d:%02d %d",
-		mark + ":",
+		mark+":",
 		t.Year(), t.Month(), t.Day(),
 		t.Hour(), t.Minute(), t.Second(),
 		t.Unix())
@@ -244,20 +332,27 @@ func formatTime(t time.Time, mark string) string {
 func normalizeMark(mark string) string {
 	r := mark
 	switch mark {
-	case "inn": r = "in"
-	case "ut": r = "out"
-	case "out": r = "out"
-	case "in": r = "in"
+	case "inn":
+		r = "in"
+	case "ut":
+		r = "out"
+	case "out":
+		r = "out"
+	case "in":
+		r = "in"
 	}
 	return r
 }
 
 func determineNextStamp(mark string) string {
-	var r string;
+	var r string
 	switch mark {
-	case "in": r = "out"
-	case "out": r = "in"
-	case "": r = "in"
+	case "in":
+		r = "out"
+	case "out":
+		r = "in"
+	case "":
+		r = "in"
 	}
 	return r
 }
@@ -281,7 +376,7 @@ func enforceSequence(requestedMark string, out *os.File) error {
 // if last marker==in : ... => in
 // if no records        ... => in
 func identifyLastStamp(path string) string {
-	var out* os.File
+	var out *os.File
 	var err error
 	var colon int
 	var lastLn int
@@ -292,14 +387,13 @@ func identifyLastStamp(path string) string {
 	stat, _ := os.Stat(path)
 	o := make([]byte, stat.Size())
 	_, err = out.Read(o)
-	lastIndex := int(stat.Size()-1)
-
+	lastIndex := int(stat.Size() - 1)
 
 	if lastIndex <= 0 {
 		return "" //  first Record is always in? ... maybe
 	}
-	if lastIndex >=2 {
-		for lastLn = lastIndex; lastLn >-1; {
+	if lastIndex >= 2 {
+		for lastLn = lastIndex; lastLn > -1; {
 			if o[lastLn] == 10 && lastLn != lastIndex {
 				break
 			}
@@ -323,4 +417,3 @@ func identifyLastStamp(path string) string {
 	}
 	return "in"
 }
-

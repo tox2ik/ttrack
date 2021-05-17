@@ -72,14 +72,12 @@ func TestSupportUtasOut(t *testing.T) {
 }
 
 func TestHalfHour(t *testing.T) {
-	sFile := glue.TestStampFile()
-	out, _ = OpenOutputFile(sFile)
-
+	out, _ = OpenOutputFile(glue.TestStampFile())
 	twelve := time.Date(2020, 5, 5, 12, 0, 0, 0, time.UTC)
 	writeStamp(out, twelve, "in")
-	writeStamp(out, twelve.Add(time.Duration(time.Minute * 30)), "out")
+	writeStamp(out, twelve.Add(time.Minute*30), "out")
 	_ = out.Sync()
-	_, tuples, err := ParseRecords(out)
+	_, tuples, err := ParseRecordsFile(out)
 	assert.Empty(t, err)
 	assert.Equal(t, float32(1800), tuples.Seconds(), "30 min should be 1800 Seconds")
 }
@@ -87,7 +85,7 @@ func TestHalfHour(t *testing.T) {
 func TestUnseekable(t *testing.T) {
 	var file *os.File
 	defer expectPanic(t)
-	if _, _, err := ParseRecords(file); err != nil {
+	if _, _, err := ParseRecordsFile(file); err != nil {
 		panic(err)
 	}
 }
