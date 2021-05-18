@@ -62,6 +62,22 @@ func TestParseArgs_Date(t *testing.T) {
 	}
 }
 
+func TestParseDate(t *testing.T) {
+	inputs := []string{
+		"today 17:10",
+		"yesterday 10:00",
+		"13:00",
+		"23:59:59",
+	}
+	for _, inp := range inputs {
+		gnu, _ := parseGnuDate(inp);
+		go_, _ := parseGo(inp)
+		if gnu.Unix() != go_.Unix() {
+			t.Errorf("today 17:10 yields same stamp (time.Parse vs date -d)")
+		}
+	}
+}
+
 func gatherFailed(args model.Arguments, expected time.Time) string {
 	failed := ""
 	if args.Stamp.Year() != expected.Year() {

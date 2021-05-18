@@ -78,9 +78,13 @@ func interpArgs(argv []string, arg *Arguments) {
 }
 
 func ParseDate(in string) (time.Time, error) {
-	if strings.Contains(in, "today") {
-		println(in)
-	}
+
+	//t1, _ := parseGnuDate(in);
+	//t2, _ := parseGo(in)
+	//println("dat", "1621350000") // Tue May 18 05:10:00 PM CEST 2021
+	//println("gnu", t1.Unix())
+	//println("go ", t2.Unix())
+
 	if t, e := parseGo(in); e == nil {
 		return t, nil
 	}
@@ -128,17 +132,17 @@ func parseGo(inputDate string) (time.Time, error) {
 	return time.Time{}, fmt.Errorf("unable to parse date")
 }
 
-func todayTime(hms time.Time, dayOffset int) time.Time {
-	___ymd := time.Now()
+func todayTime(parsed time.Time, dayOffset int) time.Time {
+	now := time.Now()
 	return time.Date(
-		___ymd.Year(),
-		___ymd.Month(),
-		___ymd.Day()+dayOffset,
-		hms.Hour(),
-		hms.Minute(),
-		hms.Second(),
+		now.Year(),
+		now.Month(),
+		now.Day()+dayOffset,
+		parsed.Hour(),
+		parsed.Minute(),
+		parsed.Second(),
 		0,
-		hms.Location())
+		now.Location())
 }
 
 func parseGnuDate(inputDate string) (time.Time, error) {
@@ -155,7 +159,10 @@ The intro-quote of section 29 Date input formats is also worth a read.
 `
 	comment += ""
 
-	out, err = exec.Command("date", "--rfc-email", "-d", inputDate).Output()
+	date := exec.Command("date", "--rfc-email", "-d", inputDate)
+	//date.Env = []string{ "TZ=UTC"}
+
+	out, err = date.Output()
 	t, err = time.Parse(time.RFC1123Z, strings.Trim(string(out), "\r\n"))
 	if nil == err {
 		return t, nil
