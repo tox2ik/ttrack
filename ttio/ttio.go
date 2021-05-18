@@ -62,7 +62,7 @@ func ParseRecordsFile(file *os.File, ew io.Writer) ([]Record, Tuples, error) {
 	}
 
 	if len(records)%2 != 0 {
-		fmt.Fprintf(ew, "file contains unfinished stamps")
+		fmt.Fprintf(ew, "file contains unfinished stamps\n")
 		lastRec := records[len(records)-1]
 		if lastRec.IsValid() && lastRec.IsIn() {
 			lastTup := Tuple{
@@ -207,7 +207,6 @@ func AddStamp(args Arguments, w io.Writer) string {
 	fmt.Fprintf(w, "%s -> %s\n", stampLine, stampsFile.Name())
 	return stampLine
 }
-
 
 func MarkSession(args Arguments, ew io.Writer) {
 	stampsFile := Open(args)

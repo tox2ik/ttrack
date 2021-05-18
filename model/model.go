@@ -36,6 +36,10 @@ func (r Record) Equals(rm Record) bool {
 
 }
 
+func (r Record) FormatText() string {
+	return fmt.Sprintf("%-4s %s %s %d\n", r.Mark+":", r.Day, r.Time, r.Stamp)
+}
+
 // Record in and record out
 type Tuple struct {
 	Day     string
@@ -94,6 +98,17 @@ func (t *Tuple) Swap() {
 
 }
 
+func (t Tuple) Len() int {
+	c := 0
+	if t.In.IsValid() {
+		c++
+	}
+	if t.Out.IsValid() {
+		c++
+	}
+	return c
+}
+
 type Tuples struct {
 	Items []Tuple
 	// total        float32
@@ -123,28 +138,40 @@ func (tt Tuples) ReportHours(ow io.Writer) (err error) {
 	return
 }
 
-func (tt Tuples) ReportHoursPerDay(ow io.Writer) (err error) {
-	perDay := make(map[string]int64)
+
+func (tt Tuples) ReportHoursHuman(ow io.Writer) (err error) {
 	for _, t := range tt.Items {
-		perDay[t.Day] += t.Seconds
+		fmt.Fprintf(ow, t.FormatHuman())
 	}
+	fmt.Fprintf(ow, "%19s   total: %s\n", " ", tt.HoursH())
+	fmt.Fprintf(ow, "%19s average: %s\n", " ", tt.HoursAverageH())
+	return
 
-	i := 0
-	keys := make([]string, len(perDay))
-	for key := range perDay {
-		keys[i] = key
-		i++
-	}
-	sort.Strings(keys)
+}
 
-	for _, day := range keys {
-		fmt.Fprintf(ow, "%10s %5.2f\n", day, float32(perDay[day])/3600)
-
+func (tt Tuples) ReportRecords(ow io.Writer) (err error) {
+	for _, t := range tt.Items {
+		_, err = fmt.Fprintf(ow, t.In.FormatText())
+		if err != nil {
+			return
+		}
+		_, err = fmt.Fprintf(ow, t.Out.FormatText())
 		if err != nil {
 			return
 		}
 	}
-	itemc := float32(len(perDay))
+	return
+}
+
+func (tt Tuples) ReportHoursPerDay(ow io.Writer) (err error) {
+	orderedDays, secPerDay := tt.SecondsPerDay()
+	for _, ymd := range orderedDays {
+		_, err = fmt.Fprintf(ow, "%10s %5.2f\n", ymd, float32(secPerDay[ymd])/3600)
+		if err != nil {
+			return
+		}
+	}
+	itemc := float32(len(secPerDay))
 	if itemc == 0 {
 		itemc = 100000000
 	}
@@ -162,6 +189,23 @@ func (tt Tuples) Seconds() int {
 	}
 	return int(total)
 }
+
+func (tt Tuples) SecondsPerDay() (orderedDays []string, secPerDay map[string]int64) {
+	secPerDay = make(map[string]int64)
+	for _, t := range tt.Items {
+		secPerDay[t.Day] += t.Seconds
+	}
+
+	i := 0
+	orderedDays = make([]string, len(secPerDay))
+	for ymd := range secPerDay {
+		orderedDays[i] = ymd
+		i++
+	}
+	sort.Strings(orderedDays)
+	return
+}
+
 func (tt Tuples) Hours() float32 { return float32(tt.Seconds()) / 3600 }
 
 func (tt Tuples) validCount() (v int) {
@@ -206,5 +250,6 @@ func (tt *Tuples) Remove(cy int) Tuple {
 
 
 }
+
 
 // todo: move isvalid check to an AddItem function on Tuples

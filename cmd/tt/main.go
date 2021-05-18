@@ -14,7 +14,8 @@ import (
 
 func main() {
 	args := ParseArgs(os.Args[1:])
-	glue.Die(mainAct(args, os.Stdout))
+	err := mainAct(args, os.Stdout)
+	glue.Die(err)
 }
 
 var ew = os.Stderr

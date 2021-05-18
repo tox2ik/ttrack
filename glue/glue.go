@@ -5,6 +5,9 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path"
+	"runtime"
+	"strings"
 )
 
 func Debug(fmt string, arg ...interface{}) {
@@ -13,13 +16,30 @@ func Debug(fmt string, arg ...interface{}) {
 }
 
 func Die(e error) {
+
 	if e != nil {
+		pc, _, _, ok := runtime.Caller(1)
+		if !ok {
+			fmt.Fprintf(os.Stderr, "???fn()\n")
+		} else {
+			pcfn := runtime.FuncForPC(pc)
+
+			fnName := path.Base(pcfn.Name())
+			lastDot := strings.LastIndex(fnName, ".")
+			fnShort := fnName[lastDot+1:]
+			fpath, l := pcfn.FileLine(pc)
+			base := path.Base(fpath)
+
+			fmt.Fprintf(os.Stderr, "[%s:%d].%s()\n", base, l, fnShort)
+		}
+
 		panic(e)
 	}
 }
 
 var tfn = 0
 var base = "/tmp/tt-stamps-test"
+
 // parallel tests need individual output files
 func TestStampFile() string {
 	tfn++
@@ -29,13 +49,12 @@ func TestStampFile() string {
 }
 func WipeTestFiles() {
 	_ = os.Remove(base)
-	for i := 0; i < tfn ; i++ {
+	for i := 0; i < tfn; i++ {
 		_ = os.Remove(fmt.Sprintf("%s.%d", base, i))
 
 	}
 	tfn = 0
 }
-
 
 func IsExists(path string) bool {
 	_, err := os.Stat(path)
