@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"testing"
 
@@ -11,6 +13,7 @@ import (
 	. "genja.org/ttrack/model"
 )
 
+var ow io.Writer = bytes.NewBuffer(nil)
 
 func TestMain(m *testing.M) {
 	glue.WipeTestFiles()
@@ -19,17 +22,17 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
+
 func TestCount(t *testing.T) {
 	_ = os.Remove("/tmp/tt-should-be-empty")
-	count := Arguments{
+	args := Arguments{
 		DoCount: true,
 		OutPath: "/tmp/tt-should-be-empty", // resolved automatically if not specified
 	}
-	_ = mainAct(count)
-	_ = mainAct(count)
-	_ = mainAct(count)
 
-	s, err := os.Stat(count.OutPath)
+	_ = mainAct(args, ow)
+
+	s, err := os.Stat(args.OutPath)
 
 	if err != nil {
 		fmt.Println(err)

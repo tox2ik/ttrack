@@ -14,7 +14,7 @@ type Record struct {
 	Mark  string
 	Day   string
 	Time  string
-	Stamp uint32
+	Stamp int64
 }
 
 func (r Record) IsIn() bool   { return r.Mark == "in" }
@@ -39,7 +39,7 @@ func (r Record) Equals(rm Record) bool {
 // Record in and record out
 type Tuple struct {
 	Day     string
-	Seconds uint32
+	Seconds int64
 	In      Record
 	Out     Record
 }
@@ -52,7 +52,7 @@ func (t Tuple) FormatDur() string {
 func (t Tuple) FormatHuman() string {
 	h := t.Seconds / 3600
 	m := t.Seconds % 3600 / 60
-	return fmt.Sprintf("%s   %.5s - %.5s   %#2d:%02d\n",
+	return fmt.Sprintf("%s   %.5s - %.5s   %2d:%02d\n",
 		t.In.Day,
 		t.In.Time,
 		t.Out.Time,
@@ -109,23 +109,22 @@ func (tt Tuples) Last() Tuple {
 }
 
 
-func (tt Tuples) ReportHours(writer io.StringWriter) (err error) {
-	var total uint32
+func (tt Tuples) ReportHours(ow io.Writer) (err error) {
+	var total int64
 	for _, t := range tt.Items {
-		_, err = writer.WriteString(t.FormatDur()+"\n")
+		_, err = fmt.Fprintf(ow, t.FormatDur()+"\n")
 		if err != nil {
 			return
 		}
 		total += t.Seconds
 	}
-	_, err = writer.WriteString("" +
-		fmt.Sprintf("    total: %5.2f\n", tt.Hours()) +
-		fmt.Sprintf("  average: %5.2f\n", tt.HoursAverage()))
+	_, err = fmt.Fprintf(ow, "    total: %5.2f\n", tt.Hours())
+	_, err = fmt.Fprintf(ow, "  average: %5.2f\n", tt.HoursAverage())
 	return
 }
 
-func (tt Tuples) ReportHoursPerDay(writer io.StringWriter) (err error) {
-	perDay := make(map[string]uint32)
+func (tt Tuples) ReportHoursPerDay(ow io.Writer) (err error) {
+	perDay := make(map[string]int64)
 	for _, t := range tt.Items {
 		perDay[t.Day] += t.Seconds
 	}
@@ -139,7 +138,8 @@ func (tt Tuples) ReportHoursPerDay(writer io.StringWriter) (err error) {
 	sort.Strings(keys)
 
 	for _, day := range keys {
-		_, err = writer.WriteString(fmt.Sprintf("%10s %5.2f\n", day, float32(perDay[day])/3600))
+		fmt.Fprintf(ow, "%10s %5.2f\n", day, float32(perDay[day])/3600)
+
 		if err != nil {
 			return
 		}
@@ -148,14 +148,13 @@ func (tt Tuples) ReportHoursPerDay(writer io.StringWriter) (err error) {
 	if itemc == 0 {
 		itemc = 100000000
 	}
-	_, err = writer.WriteString("" +
-		fmt.Sprintf("    total: %5.2f\n", tt.Hours()) +
-		fmt.Sprintf("  average: %5.2f\n", tt.Hours()/itemc))
+	fmt.Fprintf(ow, "    total: %5.2f\n", tt.Hours())
+	fmt.Fprintf(ow, "  average: %5.2f\n", tt.Hours()/itemc)
 	return
 }
 
 func (tt Tuples) Seconds() int {
-	total := uint32(0)
+	total := int64(0)
 	for _, t := range tt.Items {
 		if t.IsValid() {
 			total += t.Seconds
@@ -183,13 +182,13 @@ func (tt Tuples) HoursH() string {
 	s := tt.Seconds()
 	h := s / 3600
 	m := s % 3600 / 60
-	return fmt.Sprintf("%#2d:%02d", h, m)
+	return fmt.Sprintf("%2d:%02d", h, m)
 }
 func (tt Tuples) HoursAverageH() string {
 	s := tt.Seconds() / tt.validCount()
 	h := s / 3600
 	m := s % 3600 / 60
-	return fmt.Sprintf("%#2d:%02d", h, m)
+	return fmt.Sprintf("%2d:%02d", h, m)
 
 }
 

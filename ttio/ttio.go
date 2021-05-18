@@ -37,7 +37,7 @@ func ParseRecordsFile(file *os.File, ew io.Writer) ([]Record, Tuples, error) {
 	}
 	day := "1970-01-01"
 	allTuples := make([]Tuple, 0)
-	in := uint32(0)
+	in := int64(0)
 	var last Record
 	for i, rec := range records {
 		if rec.IsIn() {
@@ -68,7 +68,7 @@ func ParseRecordsFile(file *os.File, ew io.Writer) ([]Record, Tuples, error) {
 			lastTup := Tuple{
 				In:      lastRec,
 				Out:     Record{Mark: "out", Day: lastRec.Day, Time: " ... "},
-				Seconds: uint32(time.Now().Unix()) - lastRec.Stamp,
+				Seconds: time.Now().Unix() - lastRec.Stamp,
 				Day:     lastRec.Day }
 			allTuples = append(allTuples, lastTup)
 		}
@@ -81,9 +81,9 @@ func ParseRecord(line string) Record {
 	line = strings.Trim(line, " ")
 	fields := strings.Split(line, " ")
 	if len(fields) >= 4 {
-		ts := uint32(0)
+		ts := int64(0)
 		if u64, err := strconv.ParseUint(fields[3], 10, 32); err == nil {
-			ts = uint32(u64)
+			ts = int64(u64)
 		} else {
 			Debug("Bad integer in line %s: %s. Error; %s", line, fields[3], err)
 		}
@@ -133,15 +133,19 @@ func createStorageFolder(ttdir string) (string, error) {
 }
 
 // write to an existing file. Ask to create a new file
-func OpenOutputFile(path string) (*os.File, error) {
+func OpenOutputFile(fPath string) (*os.File, error) {
 
-	if os.Getenv("tt_yes") == "" {
-		if ! IsExists(path) {
+	isTest := strings.HasPrefix(path.Base(os.Args[0]), "___Test")
+	isInteractive := os.Getenv("tt_yes") == ""
+
+	if isInteractive && ! isTest {
+		if ! IsExists(fPath) {
 			yes := "no"
-			fmt.Printf("Really write to %s?\nyes/no: ", path)
+			fmt.Printf("Really write to %s?\nyes/no: ", fPath)
 			rd := bufio.NewReader(os.Stdin)
 			input, _ := rd.ReadString('\n')
 			yes = strings.ToLower(strings.TrimRight(input, "\r\n"))
+
 			if ! (yes == "yes" || yes == "y") {
 				println("aborting. (set tt_yes=1 to skip this question)")
 				os.Exit(0)
@@ -149,7 +153,7 @@ func OpenOutputFile(path string) (*os.File, error) {
 		}
 	}
 
-	var out, err = os.OpenFile(path, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0755)
+	var out, err = os.OpenFile(fPath, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0755)
 	return out, err
 }
 

@@ -53,12 +53,13 @@ func interpArgs(argv []string, arg *Arguments) {
 
 	}
 
+	if len(arg.InStamp) > 0 && len(date) == 0 {
+		date = arg.InStamp
+	}
+
 	if len(date) > 0 {
 		argStamp, _ := ParseDate(date)
 		arg.Stamp = argStamp
-	} else if len(arg.InStamp) > 0 {
-		dStamp, _ := ParseDate(arg.InStamp)
-		arg.Stamp = dStamp
 	} else {
 		// the default action is to stamp in or out at the current time.
 		// zero := a.Stamp

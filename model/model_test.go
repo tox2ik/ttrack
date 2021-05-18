@@ -18,7 +18,7 @@ func TestTuple_IsValid(t *testing.T) {
 
 		tuple := Tuple{
 			Day:     rr[0].Day,
-			Seconds: float32(rr[1].Stamp - rr[0].Stamp),
+			Seconds: rr[1].Stamp - rr[0].Stamp,
 			In:      rr[0],
 			Out:     rr[1],
 		}

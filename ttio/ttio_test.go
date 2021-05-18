@@ -1,6 +1,7 @@
 package ttio
 
 import (
+	"bytes"
 	"os"
 	"strings"
 	"testing"
@@ -71,21 +72,23 @@ func TestSupportUtasOut(t *testing.T) {
 	}
 }
 
+var ew = bytes.NewBuffer(nil)
+
 func TestHalfHour(t *testing.T) {
 	out, _ = OpenOutputFile(glue.TestStampFile())
 	twelve := time.Date(2020, 5, 5, 12, 0, 0, 0, time.UTC)
 	writeStamp(out, twelve, "in")
 	writeStamp(out, twelve.Add(time.Minute*30), "out")
 	_ = out.Sync()
-	_, tuples, err := ParseRecordsFile(out)
+	_, tuples, err := ParseRecordsFile(out, ew)
 	assert.Empty(t, err)
-	assert.Equal(t, float32(1800), tuples.Seconds(), "30 min should be 1800 Seconds")
+	assert.Equal(t, 1800, tuples.Seconds(), "30 min should be 1800 Seconds")
 }
 
 func TestUnseekable(t *testing.T) {
 	var file *os.File
 	defer expectPanic(t)
-	if _, _, err := ParseRecordsFile(file); err != nil {
+	if _, _, err := ParseRecordsFile(file, ew); err != nil {
 		panic(err)
 	}
 }

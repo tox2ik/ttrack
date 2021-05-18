@@ -87,6 +87,7 @@ func layout(g *gocui.Gui) (err error) {
 
 	v, err = g.SetView(ViewDebug, 1, Y-7, X-2, Y-2)
 	if err == gocui.ErrUnknownView && v != nil {
+		v.Autoscroll = true
 		err = nil
 	}
 	return
@@ -94,10 +95,8 @@ func layout(g *gocui.Gui) (err error) {
 
 func debug(f string, a ...interface{}) {
 	v, _ := ui.Gui.View("debug")
-	_, y := v.Size()
-	if len(v.BufferLines()) >= y {
-		v.Clear()
-	}
+	//_, y := v.Size()
+	//if len(v.BufferLines()) >= y { v.Clear() }
 	if v != nil {
 		fmt.Fprintf(v, f, a...)
 	}

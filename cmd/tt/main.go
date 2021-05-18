@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
@@ -12,12 +13,13 @@ import (
 )
 
 func main() {
-	glue.Die(mainAct(ParseArgs(os.Args[1:])))
+	args := ParseArgs(os.Args[1:])
+	glue.Die(mainAct(args, os.Stdout))
 }
 
 var ew = os.Stderr
 
-func mainAct(args Arguments) (err error) {
+func mainAct(args Arguments, ow io.Writer) (err error) {
 
 	{
 		var tuples Tuples
@@ -30,10 +32,10 @@ func mainAct(args Arguments) (err error) {
 
 		if args.DoSumPerDay {
 			args.DoCount = true
-			err = tuples.ReportHoursPerDay(os.Stdout)
+			err = tuples.ReportHoursPerDay(ow)
 		} else
 		if args.DoCount {
-			err = tuples.ReportHours(os.Stdout)
+			err = tuples.ReportHours(ow)
 		}
 
 		if err != nil {

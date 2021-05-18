@@ -18,9 +18,10 @@ cover:; $(TRUN) -cover ./... ; bash bin/code-percent.sh
 
 test_mains:
 	@export tt_yes=1
-	for i in `grep -r . -e '^package main' -l | xargs -n1 dirname | sort -u`; do
+	for i in `find -name main.go | xargs -n1 dirname | sort -u`; do
 	echo; cd $$i; echo IN: $$i;
 	$(TRUN)
 	echo
+	cd $(PWD)
 	done
 
