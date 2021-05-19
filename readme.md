@@ -22,6 +22,8 @@ A cli utility for tracking time.
 - [ ] report error on invalid date e.g. tt 'an hour ago'
 - [ ] test tt s output
 - [ ] test tt c output
+- [ ] tui: action for splitting over-midnight stamps
+- [ ] tui: edit log entries
 
 
 ## Usage
@@ -29,7 +31,8 @@ A cli utility for tracking time.
 
 Synopsis:
 
-`tt [in|out] [date-time specification] [mark] [count] [per-day] [log]`
+`tt [in|out] [date-time specification]`
+`tt [mark|count|sum|log]`
 
 All parameters are optional.
 

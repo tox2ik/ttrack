@@ -10,11 +10,13 @@ type UiState struct {
 	Args           model.Arguments
 	Stamps         model.Tuples
 	Records        []model.Record
-	Gui            *gocui.Gui
 	RemovedStamps  []model.Tuple
 	RemovedRecords []model.Record
 	Presentation   Presi
 	DebugVisible   bool
+
+	Gui            *gocui.Gui
+	StampView      *gocui.View
 }
 
 func (ui UiState) Len() int {

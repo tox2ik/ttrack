@@ -1,6 +1,8 @@
 package tui
 
 import (
+	"fmt"
+
 	"github.com/jroimartin/gocui"
 	"github.com/nsf/termbox-go"
 
@@ -24,10 +26,13 @@ func bindKeys(g *gocui.Gui) (err error) {
 		g.SetKeybinding(ViewNone, 'c', gocui.ModNone, toggleDebug),
 		g.SetKeybinding(ViewNone, gocui.KeyCtrlC, gocui.ModNone, quit),
 		nil,
+		g.SetKeybinding(ViewAskInp, gocui.KeyEnter, gocui.ModNone, parseInput),
+		nil,
 		g.SetKeybinding(ViewStamps, gocui.KeyArrowDown, gocui.ModNone, cursorDown),
 		g.SetKeybinding(ViewStamps, gocui.KeyArrowUp, gocui.ModNone, cursorUp),
 		g.SetKeybinding(ViewStamps, gocui.KeyEnter, gocui.ModNone, addStamp),
 		g.SetKeybinding(ViewStamps, gocui.KeyEnter, gocui.ModAlt, selectItem),
+		g.SetKeybinding(ViewStamps, 'a', gocui.ModNone, askStamp),
 		g.SetKeybinding(ViewStamps, 'j', gocui.ModNone, cursorDown),
 		g.SetKeybinding(ViewStamps, 'k', gocui.ModNone, cursorUp),
 		g.SetKeybinding(ViewStamps, 'd', gocui.ModNone, markDelete),
@@ -41,6 +46,7 @@ func bindKeys(g *gocui.Gui) (err error) {
 	}
 	return
 }
+
 
 func toggleDebug(gui *gocui.Gui, view *gocui.View) error {
 	ui.DebugVisible = ! ui.DebugVisible
@@ -58,13 +64,7 @@ func togglePresentation(gui *gocui.Gui, view *gocui.View) error {
 		currentPresentation = 0
 	}
 	ui.Presentation = stampPresentations[currentPresentation % len(stampPresentations) ]
-
-	// i := currentPresentation
-	// z := ui
-	// println(i)
-	// println(z)
 	redraw(gui)
-
 	return nil
 }
 
@@ -73,11 +73,62 @@ func ctrlL(*gocui.Gui, *gocui.View) error {
 }
 
 
+func askStamp(gui *gocui.Gui, view *gocui.View) (err error) {
+
+	x, y := gui.Size()
+	H := 1
+	W := 20
+
+	v, err := gui.SetView(ViewAsk, x/3-W, y/4-1-H, x/3+W, y/4-1+H)
+	if err == gocui.ErrUnknownView {
+		fmt.Fprint(v, "Enter time:")
+	}
+
+	vi, err := gui.SetView(ViewAskInp, x/3-W+12, y/4-1-H, x/3+W, y/4-1+H)
+	if err == gocui.ErrUnknownView {
+		vi.Editable = true
+		vi.Frame = false
+		_, _ = gui.SetCurrentView(ViewAskInp);
+		gui.SetViewOnTop(ViewAskInp)
+
+	} else  {
+		debug("ask: %s\n", err)
+	}
+
+	return nil
+}
+
+func parseInput(gui *gocui.Gui, view *gocui.View) error {
+
+	v, _ := gui.View(ViewAskInp)
+	if v != nil {
+		t, err := ttio.ParseDate(v.Buffer())
+		if err != nil {
+
+			debug("%s", err)
+		} else {
+			v.Clear()
+			gui.SetCurrentView(ViewStamps)
+			gui.DeleteView(ViewAskInp)
+			gui.DeleteView(ViewAsk)
+
+			ui.Args.Stamp = t
+			ttio.AddStamp(ui.Args, guiEw(gui))
+			initState(ui.Args, gui, guiEw(gui))
+			redraw(gui)
+		}
+
+
+
+
+	}
+	return nil
+}
+
 func addStamp(gui *gocui.Gui, view *gocui.View) (err error) {
 	ttio.AddStamp(ui.Args, guiEw(gui))
 	initState(ui.Args, gui, guiEw(gui))
 	redraw(gui)
-	//ctrlL(nil, nil)
 	return
 }
 

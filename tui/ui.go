@@ -17,9 +17,11 @@ import (
 var ui *UiState
 
 const (
-	ViewNone    = ``
-	ViewStamps  = `stamps`
-	ViewDebug   = `debug`
+	ViewNone   = ``
+	ViewStamps = `stamps`
+	ViewDebug  = `debug`
+	ViewAsk    = `ask`
+	ViewAskInp = `ask_input`
 )
 
 func Run(arg model.Arguments) (err error) {
@@ -47,13 +49,11 @@ func Run(arg model.Arguments) (err error) {
 			gw.Write(buf.Bytes())
 			return nil
 		})
-
-
 	}()
 
 	err = gui.MainLoop()
-	if err != gocui.ErrQuit {
-		return
+	if err == gocui.ErrQuit {
+		return nil
 	}
 	return
 }
@@ -61,8 +61,8 @@ func Run(arg model.Arguments) (err error) {
 func initState(arg model.Arguments, gui *gocui.Gui, ew io.Writer) {
 	if nil == ui {
 		ui = &UiState{
-			Args: arg,
-			Gui: gui,
+			Args:         arg,
+			Gui:          gui,
 			Presentation: PresiStamps{},
 			DebugVisible: true,
 		}
@@ -71,7 +71,6 @@ func initState(arg model.Arguments, gui *gocui.Gui, ew io.Writer) {
 	ui.Stamps = tup
 	ui.Records = rec
 }
-
 
 func redraw(g *gocui.Gui) {
 	vStamps, _ := g.View(ViewStamps)
@@ -102,8 +101,8 @@ func layout(g *gocui.Gui) (err error) {
 	X, Y := g.Size()
 	v, err = g.SetView(ViewStamps, 0, 0, X-1, Y-debugH-1)
 
-
 	if err == gocui.ErrUnknownView && v != nil {
+		ui.StampView = v
 		v.Highlight = true
 		v.SelFgColor = gocui.Attribute(termbox.ColorLightGray)
 		v.SelBgColor = gocui.ColorBlack
@@ -126,11 +125,11 @@ func layout(g *gocui.Gui) (err error) {
 }
 
 func debug(f string, a ...interface{}) {
-	//v, _ := ui.Gui.View("debug")
-	////_, y := v.Size()
-	////if len(v.BufferLines()) >= y { v.Clear() }
-	//if v != nil {
-	//}
+	// v, _ := ui.Gui.View("debug")
+	// //_, y := v.Size()
+	// //if len(v.BufferLines()) >= y { v.Clear() }
+	// if v != nil {
+	// }
 	fmt.Fprintf(guiEw(ui.Gui), f, a...)
 }
 
@@ -141,7 +140,7 @@ func guiEw(gui *gocui.Gui) io.Writer {
 	if err != nil {
 		wr = os.Stderr
 	}
-	return  wr
+	return wr
 }
 
 // quit is invoked when the user presses "Ctrl+C"
