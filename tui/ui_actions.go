@@ -12,8 +12,8 @@ import (
 
 var stampPresentations = []Presi{
 	PresiStamps{},
-	PresiRecords{},
 	PresiPerDay{},
+	PresiRecords{},
 }
 var currentPresentation = 0
 
@@ -38,6 +38,7 @@ func bindKeys(g *gocui.Gui) (err error) {
 		g.SetKeybinding(ViewStamps, 'd', gocui.ModNone, markDelete),
 		g.SetKeybinding(ViewStamps, 'w', gocui.ModNone, flushItems),
 		g.SetKeybinding(ViewStamps, 's', gocui.ModNone, swapRecords),
+		g.SetKeybinding(ViewStamps, 'l', gocui.ModNone, logStamp),
 	)
 	for _, e := range resp {
 		if e != nil {
@@ -70,6 +71,11 @@ func togglePresentation(gui *gocui.Gui, view *gocui.View) error {
 
 func ctrlL(*gocui.Gui, *gocui.View) error {
 	return termbox.Sync()
+}
+
+func logStamp(gui *gocui.Gui, view *gocui.View) error {
+	ttio.AppendLog(ui.Args, guiEw(gui))
+	return nil
 }
 
 
@@ -107,19 +113,17 @@ func parseInput(gui *gocui.Gui, view *gocui.View) error {
 
 			debug("%s", err)
 		} else {
-			v.Clear()
-			gui.SetCurrentView(ViewStamps)
-			gui.DeleteView(ViewAskInp)
-			gui.DeleteView(ViewAsk)
+			_, _ = gui.SetCurrentView(ViewStamps)
+			_ = gui.DeleteView(ViewAskInp)
+			_ = gui.DeleteView(ViewAsk)
 
+			v.Clear()
 			ui.Args.Stamp = t
 			ttio.AddStamp(ui.Args, guiEw(gui))
+			ui.Args.ResetTime()
 			initState(ui.Args, gui, guiEw(gui))
 			redraw(gui)
 		}
-
-
-
 
 	}
 	return nil

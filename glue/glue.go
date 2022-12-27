@@ -70,7 +70,12 @@ func IsExists(path string) bool {
 }
 
 func RunEditor(path string) error {
-	cmd := exec.Command(os.Getenv("EDITOR"), path)
+	ed := strings.Split(os.Getenv("EDITOR"), " ")
+	args := []string{ path }
+	if len(ed) > 1 {
+		args = append(ed[1:], path)
+	}
+	cmd := exec.Command(ed[0], args...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
